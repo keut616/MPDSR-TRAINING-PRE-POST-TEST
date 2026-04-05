@@ -1,0 +1,1168 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PRE-POST TEST DASHBOARD</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2.2.0"></script>
+    <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+    <style>
+        body {
+            font-family: 'Inter', 'Noto Sans Lao', sans-serif, system-ui;
+            background-color: #f8fafc;
+        }
+        .chart-container {
+            position: relative;
+            width: 100%;
+            max-width: 1000px;
+            margin-left: auto;
+            margin-right: auto;
+            height: 40vh;
+            max-height: 400px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+        @media (min-width: 768px) {
+            .chart-container {
+                height: 50vh;
+                max-height: 500px;
+            }
+        }
+        .metric-card {
+            transition: transform 0.2s ease-in-out;
+        }
+        .metric-card:hover {
+            transform: translateY(-5px);
+        }
+        #toast {
+            transition: all 0.3s ease-in-out;
+        }
+        .print-avoid-break {
+            page-break-inside: avoid;
+        }
+    </style>
+</head>
+<body class="text-slate-800 antialiased" id="pdf-content">
+
+    <nav id="main-nav" class="bg-blue-900 text-white sticky top-0 z-50 shadow-md">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="flex items-center justify-between h-16">
+                <div class="flex items-center space-x-3">
+                    <span class="text-2xl">&#128202;</span>
+                    <span class="font-bold text-xl tracking-wide">PRE-POST TEST DASHBOARD</span>
+                </div>
+            </div>
+        </div>
+    </nav>
+
+    <header class="bg-white border-b border-slate-200 py-12 print-avoid-break">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
+            <h1 id="dashboard-title" class="text-3xl md:text-5xl font-extrabold text-blue-900 mb-4">Pre and Post Evaluation: MPDSR Training</h1>
+            <p id="dashboard-subtitle" class="text-lg md:text-xl text-slate-500 max-w-3xl mx-auto">
+                <span class="font-semibold text-blue-700">&#128205; <span id="loading-text">Loading data...</span></span>
+            </p>
+        </div>
+    </header>
+
+    <main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10 space-y-10">
+
+        <!-- Controls Section (Import/Export/Clear) -->
+        <section id="controls-section" class="bg-white rounded-xl shadow-sm border border-slate-200 p-5 flex flex-col items-start gap-4 border-l-4 border-blue-500 print-avoid-break">
+            <div class="w-full mb-1">
+                <h3 class="text-lg font-bold text-slate-800 flex items-center gap-2">
+                    <span>&#128193;</span> Data Management
+                </h3>
+                <p class="text-sm text-slate-500 mt-1">If your embedded data is missing, you can manually upload your Excel/CSV here.</p>
+            </div>
+            <div class="flex gap-3 flex-wrap w-full">
+                <div class="relative">
+                    <input type="file" id="fileUpload" class="hidden" accept=".xlsx, .xls, .csv">
+                    <label for="fileUpload" id="fileUploadLabel" class="cursor-pointer bg-blue-600 hover:bg-blue-700 text-white font-medium py-2.5 px-5 rounded-lg shadow-sm transition-colors flex items-center gap-2">
+                        <span class="text-lg">&#128228;</span>
+                        <span>Import File...</span>
+                    </label>
+                </div>
+                <button id="clearBtn" class="bg-slate-200 hover:bg-slate-300 text-slate-700 font-medium py-2.5 px-5 rounded-lg shadow-sm transition-colors flex items-center gap-2">
+                    <span class="text-lg">&#128465;</span>
+                    <span>Clear Data</span>
+                </button>
+                <button id="exportBtn" class="bg-rose-600 hover:bg-rose-700 text-white font-medium py-2.5 px-5 rounded-lg shadow-sm transition-colors flex items-center gap-2 ml-auto">
+                    <span class="text-lg">&#128196;</span>
+                    <span>Export PDF</span>
+                </button>
+            </div>
+        </section>
+
+        <!-- Filter Section -->
+        <section id="filter-section" class="bg-white rounded-xl shadow-sm border border-slate-200 p-5 flex flex-col items-start gap-3 print-avoid-break">
+            <div class="flex items-center gap-2 text-slate-700 font-bold">
+                <span class="text-lg">&#128269;</span>
+                <span>Filter Data:</span>
+            </div>
+            <div class="flex flex-col sm:flex-row gap-3 w-full">
+                <select id="provinceFilter" class="bg-slate-50 border border-slate-300 text-slate-700 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-full sm:w-[200px] p-2.5">
+                    <option value="">-- All Provinces --</option>
+                </select>
+                <select id="districtFilter" class="bg-slate-50 border border-slate-300 text-slate-700 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-full sm:w-[200px] p-2.5">
+                    <option value="">-- All Districts --</option>
+                </select>
+                <select id="monthFilter" class="bg-slate-50 border border-slate-300 text-slate-700 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-full sm:w-[160px] p-2.5">
+                    <option value="">-- All Months --</option>
+                </select>
+            </div>
+        </section>
+
+        <!-- KPIs Section -->
+        <section class="print-avoid-break">
+            <div class="mb-6">
+                <h2 class="text-2xl font-bold text-slate-800 border-l-4 border-amber-500 pl-3">Evaluation Overview (KPIs)</h2>
+                <p class="text-slate-600 mt-2">Summary of key metrics indicating the effectiveness of this training.</p>
+            </div>
+            
+            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+                <div class="metric-card bg-white rounded-xl shadow-sm border border-slate-100 p-6 flex flex-col items-center text-center">
+                    <div class="text-4xl mb-2">&#128101;</div>
+                    <div class="text-slate-500 font-medium text-sm uppercase tracking-wider">Total Participants (Pre)</div>
+                    <div class="text-4xl font-black text-blue-900 mt-1"><span id="kpi-count">0</span> <span class="text-lg font-normal text-slate-400">Pax</span></div>
+                </div>
+                <div class="metric-card bg-white rounded-xl shadow-sm border border-slate-100 p-6 flex flex-col items-center text-center">
+                    <div class="text-4xl mb-2">&#128200;</div>
+                    <div class="text-slate-500 font-medium text-sm uppercase tracking-wider">Average Score (Pre)</div>
+                    <div class="text-4xl font-black text-[#35675D] mt-1"><span id="kpi-pre-pct">0%</span></div>
+                    <div id="kpi-pre-score" class="text-sm text-slate-400 mt-1">0 / 20 points</div>
+                </div>
+                <div class="metric-card bg-white rounded-xl shadow-sm border border-slate-100 p-6 flex flex-col items-center text-center">
+                    <div class="text-4xl mb-2">&#127919;</div>
+                    <div class="text-slate-500 font-medium text-sm uppercase tracking-wider">Average Score (Post)</div>
+                    <div class="text-4xl font-black text-[#BF5A38] mt-1"><span id="kpi-post-pct">0%</span></div>
+                    <div id="kpi-post-score" class="text-sm text-slate-400 mt-1">0 / 20 points</div>
+                </div>
+                <div class="metric-card bg-gradient-to-br from-blue-600 to-blue-800 rounded-xl shadow-md p-6 flex flex-col items-center text-center text-white">
+                    <div class="text-4xl mb-2">&#11088;</div>
+                    <div class="text-blue-200 font-medium text-sm uppercase tracking-wider">Improvement Rate</div>
+                    <div class="text-4xl font-black text-amber-300 mt-1"><span id="kpi-diff">0%</span></div>
+                    <div class="text-sm text-blue-100 mt-1">Significant knowledge increase</div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Gender Chart Section -->
+        <section class="bg-white rounded-2xl shadow-sm border border-slate-100 p-6 md:p-8 print-avoid-break">
+            <h3 class="text-xl font-bold text-slate-800 mb-2">Result Comparison by Gender</h3>
+            <p class="text-sm text-slate-500 mb-6">Analyze the difference in knowledge gain between male and female participants to assess equity.</p>
+            <div class="chart-container" style="height: 40vh; max-height: 400px;">
+                <canvas id="genderChart"></canvas>
+            </div>
+        </section>
+
+        <!-- Distribution Chart Section -->
+        <section class="bg-white rounded-2xl shadow-sm border border-slate-100 p-6 md:p-8 print-avoid-break">
+            <h3 class="text-xl font-bold text-slate-800 mb-2">Score Distribution Changes</h3>
+            <p class="text-sm text-slate-500 mb-6">This chart illustrates the shift of participants from lower to higher score ranges post-training.</p>
+            <div class="chart-container" style="height: 40vh; max-height: 400px;">
+                <canvas id="distributionChart"></canvas>
+            </div>
+        </section>
+
+        <!-- Question Analysis Section -->
+        <section class="bg-white rounded-2xl shadow-sm border border-slate-100 p-6 md:p-8 print-avoid-break">
+            <h2 class="text-2xl font-bold text-slate-800 border-l-4 border-[#BF5A38] pl-3 mb-2">Comprehension Analysis by Question (Q1 - Q20)</h2>
+            <p class="text-slate-600 mb-8">Displays the percentage of correct answers for each question. The colored area represents the 'knowledge gap' filled after the training.</p>
+            
+            <div class="chart-container" style="height: 50vh; max-height: 600px;">
+                <canvas id="questionChart"></canvas>
+            </div>
+            
+            <!-- Dynamic Analysis Section -->
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mt-8">
+                <div class="bg-rose-50 p-5 rounded-xl border border-rose-100">
+                    <h4 class="font-bold text-rose-800 flex items-center mb-3">&#9888;&#65039; Areas for Attention (Post-Test)</h4>
+                    <p class="text-xs text-rose-600 mb-3 border-b border-rose-200 pb-2">Bottom 3 questions with the lowest scores after the training:</p>
+                    <ul id="attention-list" class="list-disc pl-5 text-sm text-rose-700 space-y-2">
+                        <li class="text-slate-400 italic">Processing...</li>
+                    </ul>
+                </div>
+                <div class="bg-blue-50 p-5 rounded-xl border border-blue-100">
+                    <h4 class="font-bold text-blue-800 flex items-center mb-3">&#128204; Follow-up & Coaching Recommendations</h4>
+                    <p class="text-xs text-blue-600 mb-3 border-b border-blue-200 pb-2">Guidelines for correction and follow-up (Coaching):</p>
+                    <ul id="recommendation-list" class="list-disc pl-5 text-sm text-blue-700 space-y-2">
+                        <li class="text-slate-400 italic">Processing...</li>
+                    </ul>
+                </div>
+            </div>
+        </section>
+
+    </main>
+
+    <footer id="main-footer" class="bg-slate-800 text-slate-300 py-8 border-t-4 border-blue-500">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center text-sm flex flex-col items-center">
+            <div class="text-2xl mb-2">&#128187;</div>
+            <p>&copy; 2026 Data Analysis Report.</p>
+        </div>
+    </footer>
+
+    <!-- Toast Notification -->
+    <div id="toast" class="fixed bottom-6 right-6 px-6 py-4 rounded-xl shadow-2xl transform translate-y-32 opacity-0 flex items-center gap-3 z-50">
+        <span id="toastIcon" class="text-2xl"></span>
+        <span id="toastMessage" class="font-semibold text-sm"></span>
+    </div>
+
+    <script>
+        // ==========================================
+        // Question Database Q1-Q20 for Analysis
+        // ==========================================
+        const QUESTION_DESCRIPTIONS = [
+            "Topic / Question 1", // Q1
+            "Topic / Question 2", // Q2
+            "Topic / Question 3", // Q3
+            "Topic / Question 4", // Q4
+            "Topic / Question 5", // Q5
+            "Topic / Question 6", // Q6
+            "Topic / Question 7", // Q7
+            "Topic / Question 8", // Q8
+            "Topic / Question 9", // Q9
+            "Topic / Question 10", // Q10
+            "Topic / Question 11", // Q11
+            "Topic / Question 12", // Q12
+            "Topic / Question 13", // Q13
+            "Topic / Question 14", // Q14
+            "Topic / Question 15", // Q15
+            "Topic / Question 16", // Q16
+            "Topic / Question 17", // Q17
+            "Topic / Question 18", // Q18
+            "Topic / Question 19", // Q19
+            "Topic / Question 20"  // Q20
+        ];
+
+        // --- Global Variable ---
+        window.allDashboardData = [];
+        let currentExportTopic = "MPDSR_Report";
+
+        // --- Toast Notification System ---
+        function showToast(message, type = 'success') {
+            const toast = document.getElementById('toast');
+            const toastIcon = document.getElementById('toastIcon');
+            const toastMessage = document.getElementById('toastMessage');
+            
+            toastMessage.textContent = message;
+            
+            if (type === 'success') {
+                toast.className = 'fixed bottom-6 right-6 px-6 py-4 rounded-xl shadow-2xl flex items-center gap-3 z-50 bg-emerald-500 text-white transform transition-all duration-300 translate-y-0 opacity-100';
+                toastIcon.innerHTML = '&#10004;&#65039;';
+            } else if (type === 'loading') {
+                toast.className = 'fixed bottom-6 right-6 px-6 py-4 rounded-xl shadow-2xl flex items-center gap-3 z-50 bg-blue-500 text-white transform transition-all duration-300 translate-y-0 opacity-100';
+                toastIcon.innerHTML = '&#8987;';
+            } else {
+                toast.className = 'fixed bottom-6 right-6 px-6 py-4 rounded-xl shadow-2xl flex items-center gap-3 z-50 bg-rose-500 text-white transform transition-all duration-300 translate-y-0 opacity-100';
+                toastIcon.innerHTML = '&#9888;&#65039;';
+            }
+
+            if (type !== 'loading') {
+                setTimeout(() => {
+                    toast.classList.remove('translate-y-0', 'opacity-100');
+                    toast.classList.add('translate-y-32', 'opacity-0');
+                }, 5000);
+            }
+        }
+
+        // --- Chart.js Configuration ---
+        Chart.register(ChartDataLabels);
+        Chart.defaults.font.family = "'Inter', 'Noto Sans Lao', sans-serif";
+        Chart.defaults.set('plugins.datalabels', {
+            color: '#334155',
+            font: { family: "'Inter', 'Noto Sans Lao', sans-serif", weight: 'bold', size: 11 },
+            anchor: 'end', align: 'top', offset: 4
+        });
+
+        function processLabel(label) {
+            const limit = 16;
+            if (label.length <= limit) return label;
+            const words = label.split(' ');
+            const lines = [];
+            let currentLine = '';
+            words.forEach(word => {
+                if ((currentLine + word).length > limit) {
+                    if (currentLine.trim() !== '') lines.push(currentLine.trim());
+                    currentLine = word + ' ';
+                } else {
+                    currentLine += word + ' ';
+                }
+            });
+            if (currentLine.trim() !== '') lines.push(currentLine.trim());
+            return lines;
+        }
+
+        const standardTooltipConfig = {
+            callbacks: {
+                title: function(tooltipItems) {
+                    const item = tooltipItems[0];
+                    let label = item.chart.data.labels[item.dataIndex];
+                    if (Array.isArray(label)) return label.join(' ');
+                    return label;
+                }
+            }
+        };
+
+        function cleanName(name) {
+            if (!name) return "";
+            let cleaned = name.trim();
+            const fullPrefixes = /^(ທ້າວ|ນາງ|Miss|Ms\.|Ms|Mr\.|Mr|ດຣ\.|ດຣ|ພຊ\.|ພຊ|ປທ\.|ປທ|ປອ\.|ປອ)/i;
+            while (fullPrefixes.test(cleaned)) {
+                cleaned = cleaned.replace(fullPrefixes, '').trim();
+            }
+            const shortPrefixes = /^(ທ|ນ)[\.\s]+/i;
+            while (shortPrefixes.test(cleaned)) {
+                cleaned = cleaned.replace(shortPrefixes, '').trim();
+            }
+            return cleaned.trim();
+        }
+
+        window.myCharts = {};
+
+        // Initialize Charts (Empty Data Initially)
+        const ctxDist = document.getElementById('distributionChart').getContext('2d');
+        window.myCharts.dist = new Chart(ctxDist, {
+            type: 'bar',
+            data: {
+                labels: ["1-5 points", "6-10 points", "11-14 points", "15-19 points", "20 points (Perfect)"].map(processLabel),
+                datasets: [
+                    { label: 'Pre-Training (%)', data: [], backgroundColor: '#35675D', borderRadius: 4 },
+                    { label: 'Post-Training (%)', data: [], backgroundColor: '#BF5A38', borderRadius: 4 }
+                ]
+            },
+            options: {
+                responsive: true, maintainAspectRatio: false, layout: { padding: { top: 20 } },
+                plugins: { legend: { position: 'bottom' }, tooltip: standardTooltipConfig, datalabels: { formatter: v => v > 0 ? v + '%' : '' } },
+                scales: { y: { beginAtZero: true, max: 110, title: { display: true, text: 'Participant Ratio (%)' } } }
+            }
+        });
+
+        const ctxGender = document.getElementById('genderChart').getContext('2d');
+        window.myCharts.gender = new Chart(ctxGender, {
+            type: 'bar',
+            data: {
+                labels: ["Male", "Female"].map(processLabel),
+                datasets: [
+                    { label: 'Pre-Test', data: [], backgroundColor: '#35675D', borderRadius: 4 },
+                    { label: 'Post-Test', data: [], backgroundColor: '#BF5A38', borderRadius: 4 }
+                ]
+            },
+            options: {
+                responsive: true, maintainAspectRatio: false, layout: { padding: { top: 20 } },
+                plugins: { legend: { position: 'bottom' }, tooltip: standardTooltipConfig, datalabels: { formatter: v => v > 0 ? v + '%' : '' } },
+                scales: { y: { beginAtZero: true, max: 115, title: { display: true, text: 'Average Score (%)' } } }
+            }
+        });
+
+        const ctxQuestion = document.getElementById('questionChart').getContext('2d');
+        window.myCharts.question = new Chart(ctxQuestion, {
+            type: 'line',
+            data: {
+                labels: Array.from({length: 20}, (_, i) => `Q${i+1}`).map(processLabel),
+                datasets: [
+                    {
+                        label: 'Post-Test Score (%)', data: [], borderColor: '#BF5A38',
+                        backgroundColor: 'rgba(191, 90, 56, 0.2)', borderWidth: 3, pointBackgroundColor: '#BF5A38', fill: true, tension: 0.3,
+                        datalabels: { color: '#8A3F25', align: 'top', offset: 6 } 
+                    },
+                    {
+                        label: 'Pre-Test Score (%)', data: [], borderColor: '#35675D',
+                        backgroundColor: 'transparent', borderWidth: 2, borderDash: [5, 5], pointBackgroundColor: '#35675D', fill: false, tension: 0.3,
+                        datalabels: { color: '#35675D', align: 'bottom', offset: 6 }
+                    }
+                ]
+            },
+            options: {
+                responsive: true, maintainAspectRatio: false, layout: { padding: { top: 20, bottom: 20 } },
+                interaction: { mode: 'index', intersect: false },
+                plugins: { legend: { position: 'bottom' }, tooltip: standardTooltipConfig, datalabels: { font: { size: 10, weight: 'bold' }, formatter: v => Math.round(v) } },
+                scales: { y: { beginAtZero: true, max: 115, title: { display: true, text: 'Correct Answer Rate (%)' } }, x: { ticks: { maxRotation: 45, minRotation: 45 } } }
+            }
+        });
+
+        // ==========================================
+        // Raw Data Processor
+        // ==========================================
+        function processRawData(rows, defaultTopic) {
+            if(!rows || rows.length === 0) throw new Error("No data found in the file or empty Sheet.");
+
+            const firstRow = rows[0] || {};
+            const fileKeys = Object.keys(firstRow);
+            
+            let topic = defaultTopic;
+            currentExportTopic = topic.replace(/[^a-zA-Z0-9_\u0E80-\u0EFF]/g, "_");
+            document.getElementById('dashboard-title').innerText = "Pre and Post Evaluation: " + topic;
+
+            const dateKeys = fileKeys.filter(k => {
+                let lower = String(k).toLowerCase().replace(/\s+/g, '');
+                return lower.includes('date') || lower === 'start' || lower === 'ເວລາ';
+            });
+            const nameK = fileKeys.find(k => String(k).includes('201') || String(k).includes('ຊື່ຜູ້ເຂົ້າຮ່ວມ') || String(k).toLowerCase().includes('name'));
+            const genK = fileKeys.find(k => String(k).includes('202') || String(k).includes('ເພດ') || String(k).toLowerCase().includes('sex') || String(k).toLowerCase().includes('gender'));
+            const typeK = fileKeys.find(k => String(k).includes('208') || String(k).includes('ກ່ອນ') || String(k).includes('ຫຼັງ') || String(k).toLowerCase().includes('pre') || String(k).toLowerCase().includes('post') || String(k).includes('ປະເພດ'));
+            const provK = fileKeys.find(k => String(k).includes('ແຂວງ') || String(k).toLowerCase().includes('province'));
+            const distK = fileKeys.find(k => String(k).includes('ເມືອງ') || String(k).toLowerCase().includes('district'));
+            
+            const calKeys = [];
+            for(let i=1; i<=20; i++){
+                let ck = fileKeys.find(k => k && String(k).replace(/\s+/g, '').toLowerCase() === 'cal'+i);
+                calKeys.push(ck);
+            }
+
+            let preList = [];
+            let postList = [];
+
+            rows.forEach(row => {
+                let rawDate = "";
+                for (let key of dateKeys) {
+                    if (row[key] != null && String(row[key]).trim() !== "") {
+                        rawDate = String(row[key]).trim();
+                        break;
+                    }
+                }
+
+                let monthYear = "Unspecified Date";
+                if (rawDate) {
+                    if (!isNaN(rawDate) && Number(rawDate) > 20000) {
+                        let d = new Date(Math.round((Number(rawDate) - 25569) * 86400 * 1000));
+                        let m = String(d.getMonth() + 1).padStart(2, '0');
+                        let y = d.getFullYear();
+                        monthYear = `${y}-${m}`;
+                    } else {
+                        let d = new Date(rawDate);
+                        if (!isNaN(d.getTime())) {
+                            let m = String(d.getMonth() + 1).padStart(2, '0');
+                            let y = d.getFullYear();
+                            monthYear = `${y}-${m}`;
+                        } else {
+                            let parts = rawDate.match(/(\d+)/g);
+                            if (parts && parts.length >= 3) {
+                                let y = parts[0].length === 4 ? parts[0] : (parts[2].length === 4 ? parts[2] : "20" + parts[2]);
+                                let m = parts[1].padStart(2, '0');
+                                monthYear = `${y}-${m}`;
+                            }
+                        }
+                    }
+                }
+
+                let name = (nameK && row[nameK] != null) ? String(row[nameK]).trim() : "";
+                let gender = (genK && row[genK] != null) ? String(row[genK]).trim() : "";
+                let typeStr = (typeK && row[typeK] != null) ? String(row[typeK]).toLowerCase().trim() : "";
+                let prov = (provK && row[provK] != null) ? String(row[provK]).trim() : "Unspecified Province";
+                let dist = (distK && row[distK] != null) ? String(row[distK]).trim() : "Unspecified District";
+
+                if (!name) return; 
+
+                let scores = calKeys.map(k => parseFloat(k && row[k] != null ? row[k] : 0) || 0);
+                let total = scores.reduce((a,b) => a+b, 0);
+
+                let rec = { name, cleanName: cleanName(name), gender, scores, totalScore: total, province: prov, district: dist, monthYear: monthYear };
+
+                if(typeStr.includes('ກ່ອນ') || typeStr.includes('pre') || typeStr === '1') {
+                    preList.push(rec);
+                } else if (typeStr.includes('ຫຼັງ') || typeStr.includes('post') || typeStr === '2') {
+                    postList.push(rec);
+                }
+            });
+
+            if (preList.length === 0) {
+                throw new Error("Could not find 'Pre-training' participants. Please check if 'Name' and 'Pre/Post' columns are correct.");
+            }
+
+            let processedData = preList.map(pre => {
+                let post = postList.find(p => p.cleanName === pre.cleanName);
+                return {
+                    name: pre.name,
+                    cleanName: pre.cleanName, 
+                    gender: pre.gender,
+                    monthYear: pre.monthYear,
+                    province: pre.province,
+                    district: pre.district,
+                    preScore: parseFloat(pre.totalScore) || 0,
+                    postScore: post ? (parseFloat(post.totalScore) || 0) : null,
+                    preScores: pre.scores,
+                    postScores: post ? post.scores : Array(20).fill(null)
+                };
+            });
+
+            window.allDashboardData = processedData;
+            
+            // Save to local storage
+            localStorage.setItem('imam_dashboard_data', JSON.stringify({
+                topic: topic,
+                data: processedData
+            }));
+            
+            initializeDashboardWithData();
+        }
+
+        function initializeDashboardWithData() {
+            updateDropdownOptions('init');
+            applyFilters();
+            showToast('Data loaded successfully!', 'success');
+        }
+
+        // --- Cross-filtering Dropdown Logic ---
+        function updateDropdownOptions(source) {
+            const provSelect = document.getElementById('provinceFilter');
+            const distSelect = document.getElementById('districtFilter');
+            const monthSelect = document.getElementById('monthFilter');
+
+            const valProv = provSelect ? provSelect.value : "";
+            const valDist = distSelect ? distSelect.value : "";
+            const valMonth = monthSelect ? monthSelect.value : "";
+
+            const formatMonth = (val) => {
+                if(val === "Unspecified Date") return val;
+                const parts = val.split('-');
+                if(parts.length === 2) return `${parts[1]}-${parts[0]}`; 
+                return val;
+            };
+
+            // Update Province Options
+            if (source !== 'province' && provSelect) {
+                let dataForProv = window.allDashboardData;
+                if (valMonth) dataForProv = dataForProv.filter(d => d.monthYear === valMonth);
+                
+                const provs = [...new Set(dataForProv.map(d => d.province).filter(Boolean))].sort();
+                provSelect.innerHTML = '<option value="">-- All Provinces --</option>' + provs.map(p => `<option value="${p}">${p}</option>`).join('');
+                
+                if (provs.includes(valProv)) provSelect.value = valProv;
+                else provSelect.value = "";
+            }
+
+            // Update District Options
+            if (source !== 'district' && distSelect) {
+                let dataForDist = window.allDashboardData;
+                const currentProv = provSelect ? provSelect.value : "";
+                
+                if (valMonth) dataForDist = dataForDist.filter(d => d.monthYear === valMonth);
+                if (currentProv) dataForDist = dataForDist.filter(d => d.province === currentProv);
+
+                const dists = [...new Set(dataForDist.map(d => d.district).filter(Boolean))].sort();
+                distSelect.innerHTML = '<option value="">-- All Districts --</option>' + dists.map(d => `<option value="${d}">${d}</option>`).join('');
+                
+                if (dists.includes(valDist)) distSelect.value = valDist;
+                else distSelect.value = "";
+            }
+
+            // Update Month Options
+            if (source !== 'month' && monthSelect) {
+                let dataForMonth = window.allDashboardData;
+                const currentProv = provSelect ? provSelect.value : "";
+                const currentDist = distSelect ? distSelect.value : "";
+                
+                if (currentProv) dataForMonth = dataForMonth.filter(d => d.province === currentProv);
+                if (currentDist) dataForMonth = dataForMonth.filter(d => d.district === currentDist);
+
+                const months = [...new Set(dataForMonth.map(d => d.monthYear).filter(Boolean))].sort().reverse();
+                monthSelect.innerHTML = '<option value="">-- All Months --</option>' + months.map(m => `<option value="${m}">${formatMonth(m)}</option>`).join('');
+                
+                if (source === 'init') {
+                     monthSelect.value = ""; // Default to all months on initial load
+                } else if (months.includes(valMonth)) {
+                    monthSelect.value = valMonth;
+                } else {
+                    monthSelect.value = "";
+                }
+            }
+        }
+
+        function applyFilters() {
+            const monthSelect = document.getElementById('monthFilter');
+            const selectedMonth = monthSelect ? monthSelect.value : "";
+            const selectedProv = document.getElementById('provinceFilter').value;
+            const selectedDist = document.getElementById('districtFilter').value;
+
+            let filtered = window.allDashboardData;
+
+            if (selectedMonth) filtered = filtered.filter(d => d.monthYear === selectedMonth);
+            if (selectedProv) filtered = filtered.filter(d => d.province === selectedProv);
+            if (selectedDist) filtered = filtered.filter(d => d.district === selectedDist);
+
+            let subtitleText = "All Areas";
+            let parts = [];
+            if (selectedDist) parts.push(`District ${selectedDist}`);
+            if (selectedProv) parts.push(`Province ${selectedProv}`);
+            
+            if (parts.length > 0) {
+                subtitleText = parts.join(', ');
+            }
+            
+            if (selectedMonth) {
+                const formatMonth = (val) => {
+                    if(val === "Unspecified Date") return val;
+                    const p = val.split('-');
+                    if(p.length === 2) return `${p[1]}-${p[0]}`;
+                    return val;
+                };
+                subtitleText += ` (Date: ${formatMonth(selectedMonth)})`;
+            }
+
+            document.getElementById('dashboard-subtitle').innerHTML = `<span class="font-semibold text-blue-700">&#128205; ${subtitleText}</span>`;
+
+            updateDashboard(filtered);
+        }
+
+        // Event Listeners for Filters
+        const provFilterElem = document.getElementById('provinceFilter');
+        if (provFilterElem) {
+            provFilterElem.addEventListener('change', function() {
+                updateDropdownOptions('province');
+                applyFilters();
+            });
+        }
+
+        const distFilterElem = document.getElementById('districtFilter');
+        if (distFilterElem) {
+            distFilterElem.addEventListener('change', function() {
+                updateDropdownOptions('district');
+                applyFilters();
+            });
+        }
+
+        const monthFilterElem = document.getElementById('monthFilter');
+        if (monthFilterElem) {
+            monthFilterElem.addEventListener('change', function() {
+                updateDropdownOptions('month');
+                applyFilters();
+            });
+        }
+
+        // --- Update Dashboard KPIs and Charts ---
+        function updateDashboard(data) {
+            let totalPre = data.length;
+            let sumPre = 0;
+            let sumPost = 0;
+            let countPost = 0;
+
+            let mPreSum=0, mPreCount=0, mPostSum=0, mPostCount=0;
+            let fPreSum=0, fPreCount=0, fPostSum=0, fPostCount=0;
+
+            let distPre = [0,0,0,0,0];
+            let distPost = [0,0,0,0,0];
+
+            let qPre = Array(20).fill(0);
+            let qPost = Array(20).fill(0);
+
+            data.forEach(d => {
+                sumPre += d.preScore;
+
+                let isMale = d.gender.toLowerCase().includes('ຊາຍ') || d.gender === '1' || d.gender.toLowerCase() === 'm' || d.gender.toLowerCase() === 'male';
+                let isFemale = d.gender.toLowerCase().includes('ຍິງ') || d.gender === '2' || d.gender.toLowerCase() === 'f' || d.gender.toLowerCase() === 'female';
+                if(isMale) { mPreSum += d.preScore; mPreCount++; }
+                if(isFemale) { fPreSum += d.preScore; fPreCount++; }
+
+                let pre = d.preScore;
+                if(pre>=1 && pre<=5) distPre[0]++; else if(pre<=10) distPre[1]++; else if(pre<=14) distPre[2]++; else if(pre<=19) distPre[3]++; else if(pre>=20) distPre[4]++;
+
+                for(let i=0; i<20; i++) { if(d.preScores[i]) qPre[i]++; }
+
+                if(d.postScore !== null) { 
+                    sumPost += d.postScore;
+                    countPost++;
+
+                    if(isMale) { mPostSum += d.postScore; mPostCount++; }
+                    if(isFemale) { fPostSum += d.postScore; fPostCount++; }
+
+                    let post = d.postScore;
+                    if(post>=1 && post<=5) distPost[0]++; else if(post<=10) distPost[1]++; else if(post<=14) distPost[2]++; else if(post<=19) distPost[3]++; else if(post>=20) distPost[4]++;
+
+                    for(let i=0; i<20; i++) { if(d.postScores[i]) qPost[i]++; }
+                }
+            });
+
+            let avgPrePct = totalPre > 0 ? (sumPre / totalPre / 20) * 100 : 0;
+            let avgPostPct = countPost > 0 ? (sumPost / countPost / 20) * 100 : 0;
+            let diffPct = avgPostPct - avgPrePct;
+
+            document.getElementById('kpi-count').innerText = totalPre;
+            document.getElementById('kpi-pre-pct').innerText = avgPrePct.toFixed(1) + "%";
+            document.getElementById('kpi-pre-score').innerText = (totalPre > 0 ? (sumPre/totalPre) : 0).toFixed(2) + " / 20 points";
+            document.getElementById('kpi-post-pct').innerText = avgPostPct.toFixed(1) + "%";
+            document.getElementById('kpi-post-score').innerText = (countPost > 0 ? (sumPost/countPost) : 0).toFixed(2) + " / 20 points";
+            document.getElementById('kpi-diff').innerText = (diffPct > 0 ? "+" : "") + diffPct.toFixed(1) + "%";
+
+            let mPreAvg = mPreCount > 0 ? (mPreSum/mPreCount/20)*100 : 0;
+            let mPostAvg = mPostCount > 0 ? (mPostSum/mPostCount/20)*100 : 0;
+            let fPreAvg = fPreCount > 0 ? (fPreSum/fPreCount/20)*100 : 0;
+            let fPostAvg = fPostCount > 0 ? (fPostSum/fPostCount/20)*100 : 0;
+            
+            window.myCharts.gender.data.datasets[0].data = [Math.round(mPreAvg), Math.round(fPreAvg)];
+            window.myCharts.gender.data.datasets[1].data = [Math.round(mPostAvg), Math.round(fPostAvg)];
+            window.myCharts.gender.update();
+
+            window.myCharts.dist.data.datasets[0].data = distPre.map(v => Math.round((v / (totalPre || 1)) * 100));
+            window.myCharts.dist.data.datasets[1].data = distPost.map(v => Math.round((v / (countPost || 1)) * 100));
+            window.myCharts.dist.update();
+
+            let qPostPctData = qPost.map(v => (v / (countPost || 1)) * 100);
+            window.myCharts.question.data.datasets[0].data = qPostPctData;
+            window.myCharts.question.data.datasets[1].data = qPre.map(v => (v / (totalPre || 1)) * 100);
+            window.myCharts.question.update();
+
+            // =========================================================
+            // Dynamic Analysis: Bottom 3 Questions
+            // =========================================================
+            if (countPost > 0) {
+                let qAnalysis = qPostPctData.map((pct, index) => ({
+                    qNum: index + 1,
+                    pct: pct,
+                    desc: QUESTION_DESCRIPTIONS[index] || `Topic for Q${index + 1}`
+                }));
+
+                qAnalysis.sort((a, b) => a.pct - b.pct);
+
+                let bottom3 = qAnalysis.slice(0, 3);
+                
+                let attentionHtml = '';
+                if (bottom3[0].pct === 100) {
+                    attentionHtml = `<li><span class="font-semibold text-emerald-600">Excellent:</span> No errors, participants answered all questions 100% correctly.</li>`;
+                } else {
+                    bottom3.forEach(q => {
+                        attentionHtml += `<li><span class="font-semibold">Q${q.qNum} (${Math.round(q.pct)}% Correct):</span> ${q.desc}</li>`;
+                    });
+                }
+                document.getElementById('attention-list').innerHTML = attentionHtml;
+
+                let recHtml = '';
+                if (bottom3[0].pct === 100) {
+                    recHtml = `<li>&#127881; All participants understood the content excellently.</li>
+                               <li>It is recommended to conduct On-the-job training within the next 3-6 months to maintain quality.</li>`;
+                } else {
+                    recHtml = `<li><span class="font-semibold">Coaching:</span> Should emphasize practical training on the topic <b>"${bottom3[0].desc}"</b> due to having the lowest comprehension rate.</li>`;
+                    if (bottom3[1] && bottom3[1].pct < 100) {
+                        recHtml += `<li><span class="font-semibold">Review:</span> Have staff who understand well guide their colleagues on <b>"${bottom3[1].desc}"</b>.</li>`;
+                    }
+                }
+                document.getElementById('recommendation-list').innerHTML = recHtml;
+            } else {
+                document.getElementById('attention-list').innerHTML = `<li class="text-slate-400 italic">No Post-test data available to analyze.</li>`;
+                document.getElementById('recommendation-list').innerHTML = `<li class="text-slate-400 italic">No Post-test data available to analyze.</li>`;
+            }
+        }
+
+        // --- File Upload Event ---
+        document.getElementById('fileUpload').addEventListener('change', function(e) {
+            const file = e.target.files[0];
+            if (!file) return;
+
+            const filename = file.name.replace(/\.[^/.]+$/, "");
+            const label = document.getElementById('fileUploadLabel');
+            const originalContent = label.innerHTML;
+            
+            label.innerHTML = '<span class="text-lg">&#8987;</span><span>Reading file...</span>';
+            label.classList.replace('bg-blue-600', 'bg-slate-500');
+            label.classList.replace('hover:bg-blue-700', 'hover:bg-slate-600');
+            
+            showToast('Processing data...', 'loading');
+
+            const reader = new FileReader();
+            reader.onload = function(event) {
+                try {
+                    const data = new Uint8Array(event.target.result);
+                    const workbook = XLSX.read(data, {type: 'array'});
+                    
+                    const sheetName = workbook.SheetNames[0]; 
+                    const rows = XLSX.utils.sheet_to_json(workbook.Sheets[sheetName]);
+                    
+                    processRawData(rows, filename);
+
+                    label.innerHTML = originalContent;
+                    label.classList.replace('bg-slate-500', 'bg-blue-600');
+                    label.classList.replace('hover:bg-slate-600', 'hover:bg-blue-700');
+                    e.target.value = ''; 
+
+                } catch (error) {
+                    console.error("Full Error:", error);
+                    showToast('Error: ' + (error.message || 'Invalid file format'), 'error');
+                    label.innerHTML = originalContent;
+                    label.classList.replace('bg-slate-500', 'bg-blue-600');
+                    label.classList.replace('hover:bg-slate-600', 'hover:bg-blue-700');
+                    e.target.value = '';
+                }
+            };
+            
+            reader.onerror = function() {
+                showToast('Error: Cannot read this file from the Browser.', 'error');
+                label.innerHTML = originalContent;
+                label.classList.replace('bg-slate-500', 'bg-blue-600');
+                label.classList.replace('hover:bg-slate-600', 'hover:bg-blue-700');
+            };
+            
+            reader.readAsArrayBuffer(file);
+        });
+
+        // --- Clear Saved Data Event ---
+        document.getElementById('clearBtn').addEventListener('click', function() {
+            localStorage.removeItem('imam_dashboard_data');
+            window.allDashboardData = [];
+            location.reload();
+        });
+
+        // --- Export PDF Function ---
+        document.getElementById('exportBtn').addEventListener('click', function() {
+            if(!window.allDashboardData || window.allDashboardData.length === 0) return;
+            
+            showToast('Generating PDF file, please wait...', 'loading');
+
+            const controlsSection = document.getElementById('controls-section');
+            const filterSection = document.getElementById('filter-section');
+            const navBar = document.getElementById('main-nav');
+            const footer = document.getElementById('main-footer');
+            
+            if(controlsSection) controlsSection.style.display = 'none';
+            if(filterSection) filterSection.style.display = 'none';
+            if(navBar) navBar.style.display = 'none';
+            if(footer) footer.style.display = 'none';
+
+            window.scrollTo(0, 0);
+
+            const element = document.body;
+            const opt = {
+                margin:       10, 
+                filename:     currentExportTopic + '_Dashboard.pdf',
+                image:        { type: 'jpeg', quality: 0.98 },
+                html2canvas:  { scale: 2, useCORS: true, scrollY: 0 },
+                jsPDF:        { unit: 'mm', format: 'a4', orientation: 'portrait' }
+            };
+
+            html2pdf().set(opt).from(element).save().then(() => {
+                if(controlsSection) controlsSection.style.display = 'flex';
+                if(filterSection) filterSection.style.display = 'flex';
+                if(navBar) navBar.style.display = 'block';
+                if(footer) footer.style.display = 'block';
+                
+                showToast('PDF file downloaded successfully!', 'success');
+            }).catch(err => {
+                if(controlsSection) controlsSection.style.display = 'flex';
+                if(filterSection) filterSection.style.display = 'flex';
+                if(navBar) navBar.style.display = 'block';
+                if(footer) footer.style.display = 'block';
+                
+                showToast('Error generating PDF', 'error');
+                console.error(err);
+            });
+        });
+
+        // ==========================================
+        // Window OnLoad & LocalStorage Check
+        // ==========================================
+        window.onload = function() {
+            // First check if user has previously uploaded data saved in browser memory
+            const savedDataString = localStorage.getItem('imam_dashboard_data');
+            
+            if (savedDataString) {
+                try {
+                    const savedState = JSON.parse(savedDataString);
+                    if (savedState && savedState.data && savedState.data.length > 0) {
+                        window.allDashboardData = savedState.data;
+                        currentExportTopic = savedState.topic;
+                        document.getElementById('dashboard-title').innerText = "Pre and Post Evaluation: " + savedState.topic;
+                        initializeDashboardWithData();
+                        return; // Exit here if loaded successfully
+                    }
+                } catch(e) {
+                    console.error("Failed to parse saved data, clearing it out", e);
+                    localStorage.removeItem('imam_dashboard_data');
+                }
+            }
+
+            // Fallback to Embedded CSV Script Tag if local storage is empty
+            const csvScriptTag = document.getElementById('csv-data');
+            if (csvScriptTag && csvScriptTag.textContent.trim().length > 50) {
+                const rawCSVData = csvScriptTag.textContent.trim();
+                
+                try {
+                    const workbook = XLSX.read(rawCSVData, {type: 'string'});
+                    const sheetName = workbook.SheetNames[0]; 
+                    const rows = XLSX.utils.sheet_to_json(workbook.Sheets[sheetName]);
+                    
+                    if (rows && rows.length > 0) {
+                        processRawData(rows, "MPDSR Training Analysis Report");
+                    }
+                } catch(e) {
+                    console.error("Error loading embedded data:", e);
+                    showToast("Error loading embedded data. Please check CSV format.", "error");
+                }
+            } else {
+                document.getElementById('dashboard-subtitle').innerHTML = `<span class="font-semibold text-blue-700">&#128205; Please upload your Excel or CSV file...</span>`;
+            }
+        }
+    </script>
+
+    <!-- 
+      === ບ່ອນວາງຂໍ້ມູນ CSV ສຳລັບການຝັງຂໍ້ມູນ === 
+      ເພື່ອໃຫ້ມັນຈື່ຖາວອນ ເວລາທ່ານກັອບປີ້ໄຟລ໌ນີ້ໄປໃສ່ຄອມໜ່ວຍອື່ນ 
+      ໃຫ້ເປີດໄຟລ໌ CSV ຂອງທ່ານດ້ວຍ Notepad ແລ້ວກັອບປີ້ຂໍ້ຄວາມທັງໝົດມາແທນທີ່ຂໍ້ຄວາມດ້ານລຸ່ມນີ້
+    -->
+    <script id="csv-data" type="text/csv">
+start	end	MPDSR training	Date:	Location	province	district	Name and surname	Gender	province	district	Responsibility:	If other, specify	Organization type:	Name of organization	Is this pre or post test?	Instructions for completing the evaluation form: Please circle 1 of the correct answer	Q1	Q2	Q3	Q4	Q5	Q6	Q7	Q8	Q9	Q10	Q11	Q12	Q13	Q14	Q15	Q16	Q17	Q18	Q19	Q20	cal1	cal2	cal3	cal4	cal5	cal6	cal7	cal8	cal9	cal10	cal11	cal12	cal13	cal14	cal15	cal16	cal17	cal18	cal19	cal20	totalcal	ID	_id	_uuid	_submission_time	_validation_status	_notes	_status	_submitted_by	__version__	_tags	meta/rootUuid	_index
+2026-03-16	2026-03-23		2026-03-16	Test	Vientiane Capital	Chanthabouly District	Sengdeuan	Male	Vientiane Capital	Chanthabouly District	Doctors		JSI	JSI	Pre-test		1a	2a	3b	4b	5a	6b	7b	8a	9c	10c	11a	12a	13a	14c	15b	16a	17b	18b	19a	20b	1	0	1	1	0	1	0	1	0	1	0	0	1	1	0	1	0	0	0	0	9		757632731	b1e56e51-351e-45c0-b7d6-c9ce9165e628	2026-03-16			submitted_via_web		vmChQJvBeMcaxQdpBRGUjK		uuid:3c2a087e-8537-4639-8444-7bb4c25ab112	1
+2026-03-16	2026-03-16		2026-03-16	JSI	Vientiane Capital	Chanthabouly District	Sengdeuan	Male	Vientiane Capital	Chanthabouly District	Doctors		MoH	JSI	Post-test		1b	2b	3b	4b	5a	6b	7b	8a	9a	10b	11b	12b	13b	14c	15a	16b	17b	18b	19a	20b	0	1	1	1	0	1	0	1	0	0	0	0	0	1	0	0	0	0	0	0	6		757633212	8d1c8e7d-2a0e-4999-8c4d-2dd3b1f0e85a	2026-03-16			submitted_via_web		vmChQJvBeMcaxQdpBRGUjK		uuid:8d1c8e7d-2a0e-4999-8c4d-2dd3b1f0e85a	2
+2026-03-18	2026-03-23		2026-03-18	ຫ້ອງວາການເມືອງບຸນເຫນືອ	Phongsaly	Boun-Neua	ທ້າວ ພັດທະວິນ ມະນີວົງສີ	Male	Phongsaly	May	Doctors		District hospital	ໂຮງຫມໍເມືອງໃຫມ່	Pre-test		1a	2c	3b	4b	5b	6a	7a	8b	9b	10c	11c	12c	13a	14c	15b	16a	17c	18c	19b	20a	1	0	1	1	1	0	1	0	1	1	1	1	1	1	0	1	0	1	1	1	15		758254045	33b43e31-42e6-4461-aafd-b93f016f1fe6	2026-03-18			submitted_via_web		vmChQJvBeMcaxQdpBRGUjK		uuid:6de5884b-5b1b-464b-9808-f270314f2150	3
+2026-03-18	2026-03-23		2026-03-18	ຫ້ອງວ່າການເມືອງບຸນເໜືອ	Phongsaly	Boun-Neua	ນາງ ຫລ້າ ຫລວງໄມໝັ້ນ	Female	Phongsaly	May	Doctors		District hospital	ໂຮງຫມໍ	Pre-test		1a	2c	3b	4b	5b	6a	7a	8b	9b	10c	11c	12c	13a	14c	15c	16a	17a	18c	19b	20a	1	0	1	1	1	0	1	0	1	1	1	1	1	1	1	1	1	1	1	1	17		758254130	891fcee2-07a5-4452-a658-d4bd7fdda636	2026-03-18			submitted_via_web		vmChQJvBeMcaxQdpBRGUjK		uuid:a9d1933c-abcf-4edd-8268-16c081a2ca4a	4
+2026-03-18	2026-03-23		2026-03-18	ຫ້ອງວ່າການເມືອງ	Phongsaly	Boun-Neua	ນ.ສົມຈິດ ໄຊຍະວົງ	Female	Phongsaly	Boun-Neua	Doctors		Provincial Health Office	ພະແນກສາທາແຂວງ	Pre-test		1a	2b	3a	4a	5c	6a	7a	8c	9b	10c	11c	12c	13a	14c	15b	16a	17a	18c	19b	20a	1	1	0	0	0	0	1	0	1	1	1	1	1	1	0	1	1	1	1	1	14		758254284	e971ef07-76b7-4d90-8bd7-5b06add5f3e4	2026-03-18			submitted_via_web		vmChQJvBeMcaxQdpBRGUjK		uuid:3f0e2a50-665f-4f1c-a864-82dad32a15fd	5
+2026-03-18	2026-03-23		2026-03-18	ຫ້ອງວ່າການເມືອງບຸນເໜຶອ	Phongsaly	Samphanh	ທ ພັນທະລີ ແກ້ວນາລີ	Male	Phongsaly	Samphanh	Other	ຜູ້ປະສານງານ	District Health Office	ຫ້ອງການສາທາລະນະສຸກເມືອງສຳພັນ	Pre-test		1a	2b	3b	4a	5c	6a	7a	8c	9b	10b	11a	12c	13a	14c	15b	16a	17c	18c	19c	20a	1	1	1	0	0	0	1	0	1	0	0	1	1	1	0	1	0	1	0	1	11		758254437	e84fc2f6-4947-4968-9597-6dbe9a42a8c7	2026-03-18			submitted_via_web		vmChQJvBeMcaxQdpBRGUjK		uuid:59dfc1f9-3c40-4ece-8a50-868e2498eb30	6
+2026-03-18	2026-03-20		2026-03-18	ຫ້ອງວ່າການເມືອງບູນເໜືອ	Phongsaly	Boun-Neua	ນ້ຄຳ ມະໂມທຳ	Female	Phongsaly	Phongsaly	Primary health care		District Health Office	ສາທາເມືອງຜົ້ງສາລີ	Pre-test		1a	2b	3b	4a	5c	6b	7a	8c	9c	10c	11c	12b	13c	14c	15c	16a	17b	18c	19c	20a	1	1	1	0	0	1	1	0	0	1	1	0	1	1	1	1	0	1	0	1	13		758254439	e48d4b1b-7df5-4cdb-ac79-bc0294332090	2026-03-18			submitted_via_web		vmChQJvBeMcaxQdpBRGUjK		uuid:9608a260-f471-43ac-b49e-3d059e5c958e	7
+2026-03-18	2026-03-23		2026-03-18	ຫ້ອງວ່າການເມືອງບູນເຫນືອ	Phongsaly	Boun-Neua	ນາງ ຄອນສະໝອນ ພູມມະແສນ	Female	Phongsaly	Phongsaly	Midwives		District hospital	ໂຮງໝໍຊຸມຊົນເມືອງຜົ້ງສາລີ	Pre-test		1a	2b	3c	4a	5c	6b	7a	8c	9b	10c	11c	12c	13a	14c	15b	16a	17c	18c	19c	20a	1	1	0	0	0	1	1	0	1	1	1	1	1	1	0	1	0	1	0	1	13		758254553	4da86bed-6e1b-4a39-93fd-31dcc614e8b3	2026-03-18			submitted_via_web		vmChQJvBeMcaxQdpBRGUjK		uuid:eb446aeb-9589-4fcd-b4cc-f47870b924ca	8
+2026-03-18	2026-03-23		2026-03-18	ຫອ້ງວາການເມືອງບຸນເໜືອ	Phongsaly	Boun-Neua	ເຂັມພະສອນ ລີນາວເຍີ	Female	Phongsaly	Boun-Tay	Nurses		District hospital	ໂຮງໝໍເມືອງບຸນໃຕ້	Pre-test		1a	2b	3a	4b	5c	6b	7a	8c	9b	10c	11a	12c	13a	14c	15a	16a	17a	18a	19a	20a	1	1	0	1	0	1	1	0	1	1	0	1	1	1	0	1	1	0	0	1	13		758254643	6a60ffcf-e723-4098-9997-720d080035dd	2026-03-18			submitted_via_web		vmChQJvBeMcaxQdpBRGUjK		uuid:a617b3f1-2b98-42ae-ac96-ec4f6a4d16ed	9
+2026-03-18	2026-03-23		2026-03-18	ຫ້ອງວ່າການບຸນເໜືອ	Phongsaly	Boun-Neua	ດຮ ໄຊວັນ ວົງສາ	Male	Phongsaly	Boun-Tay	Doctors		District Health Office	ຫ້ອງການສາທາລະນະສຸກເມືອງບຸນໃຕ້	Pre-test		1a	2c	3c	4a	5c	6b	7b	8c	9b	10a	11a	12c	13a	14b	15b	16b	17c	18b	19b	20c	1	0	0	0	0	1	0	0	1	0	0	1	1	0	0	0	0	0	1	0	6		758254741	a4a60da9-259c-4b15-8d47-15d43254ea97	2026-03-18			submitted_via_web		vmChQJvBeMcaxQdpBRGUjK		uuid:29e3db3c-d59f-429f-a0f9-617907ab00df	10
+2026-03-18	2026-03-23		2026-03-18	ຫ້ອງວ່າການເມືອງບຸນເໝືອ	Phongsaly	Boun-Neua	ນ ສີຈັນ ພູມພະຈັນ	Female	Phongsaly	May	Nurses		District hospital	ໂຮງໝໍເມືອງໃຫ່ມ	Pre-test		1a	2b	3b	4b	5c	6b	7a	8c	9b	10a	11b	12c	13a	14b	15b	16a	17b	18c	19b	20c	1	1	1	1	0	1	1	0	1	0	0	1	1	0	0	1	0	1	1	0	12		758254743	92b3c874-3b5f-4fc4-937e-cb16859aa8e9	2026-03-18			submitted_via_web		vmChQJvBeMcaxQdpBRGUjK		uuid:d82318ca-d195-4700-a73b-d06692fde279	11
+2026-03-18	2026-03-18		2026-03-18	ຫ້ອງວາການເມືອງບຸນເຫນືອ	Phongsaly	May	ທ.ພອນໄຂ.ດວງປະເສີດ	Male	Phongsaly	May	Doctors		District hospital	ໂຮງຫມໍເມືອງໃຫມ	Pre-test		1a	2b	3c	4a	5c	6c	7a	8c	9c	10b	11a	12c	13b	14c	15c	16b	17b	18c	19a	20b	1	1	0	0	0	0	1	0	0	0	0	1	0	1	1	0	0	1	0	0	7		758254755	35204ef8-17d5-4a68-9572-7b3edea74998	2026-03-18			submitted_via_web		vmChQJvBeMcaxQdpBRGUjK		uuid:35204ef8-17d5-4a68-9572-7b3edea74998	12
+2026-03-18	2026-03-18		2026-03-18	ຫ້ອງວ່າການເມືອງບຸນເໝືແ	Phongsaly	Boun-Tay	ນາງພອນແກ້ວຜີວລາວລີ	Female	Phongsaly	Boun-Tay	Midwives		District hospital	ຫ້ອງວ່າການເມືອງບຸນເໝືອ	Pre-test		1a	2b	3b	4a	5a	6b	7a	8c	9b	10c	11a	12c	13c	14c	15a	16a	17a	18c	19b	20b	1	1	1	0	0	1	1	0	1	1	0	1	1	1	0	1	1	1	1	0	14		758254759	5efa6384-92c3-4741-b256-d76feaa00ae3	2026-03-18			submitted_via_web		vmChQJvBeMcaxQdpBRGUjK		uuid:5efa6384-92c3-4741-b256-d76feaa00ae3	13
+2026-03-18	2026-03-23		2026-03-18	ຫ້ອງວ່າການເມືອງບູນເຫນືອ	Phongsaly	Samphanh	ນາງ ບົວບານ ໄຊຍະສຸກ	Female	Phongsaly	Samphanh	Midwives		District hospital	ໂຮງຫມໍເມືອງສຳພັນ	Pre-test		1a	2b	3b	4a	5c	6b	7a	8c	9c	10c	11c	12c	13a	14c	15b	16b	17b	18c	19c	20a	1	1	1	0	0	1	1	0	0	1	1	1	1	1	0	0	0	1	0	1	12		758254781	1b3b4d36-f41c-4147-a79c-5477a5b6a633	2026-03-18			submitted_via_web		vmChQJvBeMcaxQdpBRGUjK		uuid:0f152930-943d-4689-9aa3-e319778cf87f	14
+2026-03-18	2026-03-18		2026-03-18	ຫ້ອວ່າການເມຶ້ອງບູນເໜຶອ	Phongsaly	Boun-Neua	ນາງ ແສງເດືອນ ພິມມະຈັນ	Female	Phongsaly	Boun-Tay	Doctors		District hospital	ໂຮງໜໍເມຶ້ອງບູນໃຕ້	Pre-test		1a	2b	3a	4a	5c	6a	7a	8c	9b	10a	11c	12c	13c	14a	15b	16b	17a	18a	19a	20a	1	1	0	0	0	0	1	0	1	0	1	1	1	0	0	0	1	0	0	1	9		758254782	8931fe9b-07e5-4f05-b6b5-0c5c99e2f250	2026-03-18			submitted_via_web		vmChQJvBeMcaxQdpBRGUjK		uuid:8931fe9b-07e5-4f05-b6b5-0c5c99e2f250	15
+2026-03-18	2026-03-23		2026-03-18	ຫ້ອງວ່າການເມືອງບຸນເຫນືອ	Phongsaly	Samphanh	ນ ສອນເພັດ ລາວເຊີນ	Female	Phongsaly	Samphanh	Midwives		District hospital	ໂຮງຫມໍເມືອງສຳພັນ	Pre-test		1a	2b	3b	4a	5c	6b	7a	8c	9c	10c	11c	12c	13a	14c	15b	16a	17b	18c	19c	20a	1	1	1	0	0	1	1	0	0	1	1	1	1	1	0	1	0	1	0	1	13		758254793	ed920c75-7e52-4120-a853-5ac6d7ab1113	2026-03-18			submitted_via_web		vmChQJvBeMcaxQdpBRGUjK		uuid:39447e3f-2968-4d79-98f4-5afc2b8b040f	16
+2026-03-18	2026-03-23		2026-03-18	ຫ້ອງວ່າການເມືອງບຸນເໜືອ	Phongsaly	Boun-Neua	ວີສະຫວັນ ແສງອິນທອງ	Female	Phongsaly	Boun-Tay	Other	ແມ່ ແລະ ເດັກ	District Health Office	ຫ້ອງການສາທາລະນະສຸກເມືອງ	Pre-test		1a	2b	3b	4a	5c	6b	7a	8c	9b	10c	11a	12c	13a	14b	15b	16a	17a	18a	19c	20a	1	1	1	0	0	1	1	0	1	1	0	1	1	0	0	1	1	0	0	1	12		758254819	ff3a98e2-6a4f-4eb6-989d-36ec9f42d5f6	2026-03-18			submitted_via_web		vmChQJvBeMcaxQdpBRGUjK		uuid:a309a478-531d-441f-b9f8-af35ec166468	17
+2026-03-18	2026-03-23		2026-03-18	ຫ້ອງວ່າການເມຶອງບຸນເຫນືອ	Phongsaly	Phongsaly	ດຣ ສີທອງ ໂງ່ນພາດີ	Female	Phongsaly	Phongsaly	Doctors		District hospital	ໂຮງຫມໍເມຶອງຜົ້ງສາລີ	Pre-test		1c	2a	3c	4a	5c	6a	7a	8b	9c	10a	11c	12c	13a	14c	15c	16b	17b	18c	19c	20a	0	0	0	0	0	0	1	0	0	0	1	1	1	1	1	0	0	1	0	1	8		758254822	80addbbd-9690-461d-a8df-fd1397837993	2026-03-18			submitted_via_web		vmChQJvBeMcaxQdpBRGUjK		uuid:c2d8757c-f313-4c84-b6fe-97d82ee605c9	18
+2026-03-18	2026-03-23		2026-03-18	ຫ້ອງວາການເມືອງບຸນເຫນືອ	Phongsaly	Boun-Neua	ບົວພັນ ລໍວັນຂຸນ	Female	Phongsaly	May	Doctors		District Health Office	ສາທາເມືອງໃຫມ່	Pre-test		1a	2b	3b	4a	5b	6b	7a	8c	9b	10c	11a	12c	13a	14c	15a	16a	17c	18c	19a	20a	1	1	1	0	1	1	1	0	1	1	0	1	1	1	0	1	0	1	0	1	14		758254848	bb8f37dc-e644-47bc-b6d8-d46410f29c68	2026-03-18			submitted_via_web		vmChQJvBeMcaxQdpBRGUjK		uuid:944345e8-2e25-4b7d-a253-568bd3f79595	19
+2026-03-18	2026-03-23		2026-03-18	ຫອ້ງວ່າການເມືອງບຸນເຫນືອ	Phongsaly	Boun-Neua	ນາງ ວອນມະນີ ສຸລິເດດ	Female	Phongsaly	Phongsaly	Primary health care		District Health Office	ຫອ້ງການສາທາເມືອງຜົ້ງສາລີ	Pre-test		1c	2b	3b	4a	5b	6a	7a	8c	9b	10c	11c	12c	13a	14c	15b	16b	17c	18a	19c	20a	0	1	1	0	1	0	1	0	1	1	1	1	1	1	0	0	0	0	0	1	11		758254890	43c5e04d-b665-4a7e-8d48-fde7f568d574	2026-03-18			submitted_via_web		vmChQJvBeMcaxQdpBRGUjK		uuid:b6245a7e-e570-4b46-b4e9-592c4afe2361	20
+2026-03-18	2026-03-18		2026-03-18	ຫອ້ງວາ່ການ	Phongsaly	Boun-Tay	ນາງບົວຄຳ	Female	Phongsaly	Boun-Tay	Doctors		District hospital	ໂຮງໝໍ	Pre-test		1a	2a	3a	4a	5c	6b	7b	8a	9b	10a	11c	12b	13c	14a	15b	16a	17c	18a	19b	20c	1	0	0	0	0	1	0	1	1	0	1	0	1	0	0	1	0	0	1	0	8		758254951	aa3217bc-0fcc-4263-9e4b-f5f8cee0ab25	2026-03-18			submitted_via_web		vmChQJvBeMcaxQdpBRGUjK		uuid:aa3217bc-0fcc-4263-9e4b-f5f8cee0ab25	21
+2026-03-18	2026-03-23		2026-03-18	ຫ້ອງວ່າການປົກຄອງເມືອງບຸນເໜີອ	Phongsaly	Boun-Tay	ສີເພົ້າກອງບີໄຊ	Male	Phongsaly	Boun-Tay	Nurses		District Health Office	ສາທາເມືອງບຸນໃຕ້	Pre-test		1c	2b	3b	4b	5c	6c	7a	8c	9b	10c	11c	12b	13a	14b	15b	16b	17b	18b	19b	20a	0	1	1	1	0	0	1	0	1	1	1	0	1	0	0	0	0	0	1	1	10		758254954	571b2202-3cb4-4fa8-80c8-15ff197d848e	2026-03-18			submitted_via_web		vmChQJvBeMcaxQdpBRGUjK		uuid:259d49f6-60cd-4653-86ee-409cc7d1d41f	22
+2026-03-18	2026-03-23		2026-03-18	ຫອ້ງວ່າການເມືອງບຸນເໜືອ	Phongsaly	Boun-Neua	ນາງສີແພງ ແກ້ວນາ	Female	Phongsaly	Phongsaly	Primary health care		District hospital	ຫອ້ງວ່າເມືອງບຸນເໜືອ	Pre-test		1c	2b	3b	4b	5a	6b	7a	8c	9b	10b	11c	12c	13a	14b	15a	16a	17a	18c	19b	20c	0	1	1	1	0	1	1	0	1	0	1	1	1	0	0	1	1	1	1	0	13		758254999	8727180a-8be3-4bae-9cb5-0b96883abd84	2026-03-18			submitted_via_web		vmChQJvBeMcaxQdpBRGUjK		uuid:17ae2b2e-b827-48a0-b89a-24cc1c0c7186	23
+2026-03-18	2026-03-18		2026-03-18	ຫອ້ງວ່າການເມືອງບູນເໝືອ	Phongsaly	Boun-Neua	ນ.ຈັນທີ	Female	Phongsaly	Boun-Neua	Midwives		District Health Office	ຫອ້ງການສາທາເມືອງບູນເໝືອ	Pre-test		1a	2b	3a	4a	5c	6b	7a	8c	9b	10c	11c	12c	13c	14a	15b	16b	17a	18a	19b	20a	1	1	0	0	0	1	1	0	1	1	1	1	1	0	0	0	1	0	1	1	12		758255067	64b8025f-b098-4366-b178-09c0aa273e0f	2026-03-18			submitted_via_web		vmChQJvBeMcaxQdpBRGUjK		uuid:64b8025f-b098-4366-b178-09c0aa273e0f	24
+2026-03-18	2026-03-23		2026-03-18	ຫອ້ງວ່າການເມືອງບຸນເໝຶອ	Phongsaly	Boun-Neua	ນ ສີແພ ທີດອອນຫຼ້າ	Female	Phongsaly	Boun-Neua	Primary health care		District Health Office	ຫອ້ງການສາທາເມືອງ	Pre-test		1a	2a	3a	4a	5c	6a	7a	8c	9b	10c	11b	12c	13c	14b	15b	16a	17a	18a	19b	20a	1	0	0	0	0	0	1	0	1	1	0	1	0	0	0	1	1	0	1	1	9		758255110	254b9e44-d329-4260-9d32-44cbf2e8b606	2026-03-18			submitted_via_web		vmChQJvBeMcaxQdpBRGUjK		uuid:6e0ea0b6-aa53-4f4b-991e-6370bd4614f1	25
+2026-03-18	2026-03-18		2026-03-18	ຫ້ອງວ່າການເມືອງບຸນເໜືອ	Phongsaly	Boun-Neua	ທ້າວໜໍ່ແປງ ພີມມະຈັນ	Male	Phongsaly	Samphanh	Doctors		District hospital	ໂຮງໝໍເມືອງສຳພັນ	Pre-test		1a	2a	3b	4b	5b	6a	7a	8c	9c	10c	11c	12c	13c	14b	15c	16b	17b	18b	19a	20a	1	0	1	1	1	0	1	0	0	1	1	1	1	0	1	0	0	0	0	1	11		758255134	19f8b8b1-fbba-4042-8ce2-3cf23aa6c35e	2026-03-18			submitted_via_web		vmChQJvBeMcaxQdpBRGUjK		uuid:19f8b8b1-fbba-4042-8ce2-3cf23aa6c35e	26
+2026-03-18	2026-03-23		2026-03-18	ຫອ້ງວ່າການເມືອງບູນເໝື່ອ	Phongsaly	Boun-Neua	ນາງຂັນຄໍາຫີ້ຼນຕານ	Female	Phongsaly	Phongsaly	Nurses		District hospital	ຜົ້ງສາລີ	Pre-test		1a	2a	3b	4a	5c	6a	7a	8b	9b	10c	11a	12b	13a	14a	15a	16b	17b	18a	19c	20a	1	0	1	0	0	0	1	0	1	1	0	0	1	0	0	0	0	0	0	1	7		758255255	fe9ca39f-f177-42ee-be69-53495a4b7fa6	2026-03-18			submitted_via_web		vmChQJvBeMcaxQdpBRGUjK		uuid:dc257aeb-b7bc-4ab5-8073-768f66216709	27
+2026-03-18	2026-03-23		2026-03-18	ຫ້ອງປະຊຸມຫ້ອງວ່າການເມືອງບຸນເໜືອ	Phongsaly	Boun-Neua	ທ ສົມຕຸ້ຍ	Male	Phongsaly	May	Other	ສະຖິຕິ-ແຜນການ(ຜູ້ປະສານງານ)	District Health Office	ຫ້ອງການສາທາລະນະສຸກເມືອງໃໝ່	Pre-test		1a	2b	3b	4b	5c	6a	7a	8c	9a	10c	11c	12c	13a	14c	15a	16a	17a	18c	19b	20a	1	1	1	1	0	0	1	0	0	1	1	1	1	1	0	1	1	1	1	1	15		758255842	05e789f7-81a1-427e-9b45-5b25c2106dca	2026-03-18			submitted_via_web		vmChQJvBeMcaxQdpBRGUjK		uuid:b64e2fe9-ddb3-41d0-a1ef-bb412eabfef0	28
+2026-03-18	2026-03-18		2026-03-18	ສະໂມສອນຫ້ອງວ່າການເມືອງ ບຸນເໜືອ	Phongsaly	Boun-Neua	ພັນມະນີ ສີປະເສິດ	Female	Phongsaly	Phongsaly	Midwives		District hospital	ໂຮງໝໍຊຸມຊົນເມືອວ ຜົ້ງສາລີ	Pre-test		1c	2b	3a	4a	5c	6a	7a	8a	9c	10c	11c	12c	13c	14c	15c	16a	17a	18a	19a	20a	0	1	0	0	0	0	1	1	0	1	1	1	1	1	1	1	1	0	0	1	12		758256085	83e9bd36-8e0a-45de-a814-18317f2e5b2c	2026-03-18			submitted_via_web		vmChQJvBeMcaxQdpBRGUjK		uuid:83e9bd36-8e0a-45de-a814-18317f2e5b2c	29
+2026-03-18	2026-03-23		2026-03-18	ຫ້ອງວາການເມືອງບຸນເໜືອ	Phongsaly	May	ນາງ ບົວເເພງ ວິໄລນົນ	Female	Phongsaly	May	Midwives		District hospital	ໂຮງໝໍເມືອງໃຫມ່	Pre-test		1a	2b	3a	4b	5a	6a	7a	8b	9b	10b	11c	12c	13a	14c	15c	16a	17a	18c	19b	20a	1	1	0	1	0	0	1	0	1	0	1	1	1	1	1	1	1	1	1	1	15		758267598	d7689453-ed7d-44d0-8748-fdc440cefc1c	2026-03-18			submitted_via_web		vmChQJvBeMcaxQdpBRGUjK		uuid:b3e8e68a-db63-48f2-9454-3ee0173002d6	30
+2026-03-20	2026-03-23		2026-03-20	ຫ້ອງວ່າການເມືອງບຸນເໜື່ອ	Phongsaly	Samphanh	ທ້າວໜໍ່ແປງ ພີມມະຈັນ	Male	Phongsaly	Samphanh	Doctors		District hospital	ໂຮງໝໍເມືອງ	Post-test		1a	2b	3b	4b	5a	6b	7a	8a	9a	10c	11c	12a	13a	14a	15b	16a	17a	18c	19c	20a	1	1	1	1	0	1	1	1	0	1	1	0	1	0	0	1	1	1	0	1	14		758911977	f99953cb-0f83-4996-9d60-1504346d3a8a	2026-03-20			submitted_via_web		vmChQJvBeMcaxQdpBRGUjK		uuid:c7851302-cb1f-4a2a-9ed7-47f89c20d1de	31
+2026-03-18	2026-03-23		2026-03-20	ຫ້ອງວ່າການປົກຄອງເມືອງເໜີອ	Phongsaly	Boun-Tay	ສີເພົ້າກອງບີໄຊ	Male	Phongsaly	Boun-Tay	Nurses		District hospital	ສາທາເມືອງບຸນໃຕ້	Post-test		1a	2b	3b	4b	5b	6b	7a	8c	9a	10c	11b	12a	13a	14c	15b	16a	17c	18a	19b	20a	1	1	1	1	1	1	1	0	0	1	0	0	1	1	0	1	0	0	1	1	13		758912409	b514d953-5da6-4b8b-90fd-55e4ab485ec7	2026-03-20			submitted_via_web		vmChQJvBeMcaxQdpBRGUjK		uuid:0055bbaf-66a1-4010-b3e3-a7583536b3c0	32
+2026-03-18	2026-03-23		2026-03-20	ຫອ້ງວາການ	Phongsaly	Boun-Tay	ນາງບົວຄຳ	Female	Phongsaly	Boun-Tay	Doctors		District hospital	ບູນໃຕ້	Post-test		1a	2b	3b	4b	5b	6b	7a	8c	9a	10c	11b	12a	13a	14c	15b	16a	17c	18a	19b	20a	1	1	1	1	1	1	1	0	0	1	0	0	1	1	0	1	0	0	1	1	13		758912411	abd4e8e4-1af1-4aea-b48f-f13dd95db8dc	2026-03-20			submitted_via_web		vmChQJvBeMcaxQdpBRGUjK		uuid:1832559a-abb8-4e9a-a891-cb2f31bfe3d8	33
+2026-03-20	2026-03-23		2026-03-20	ຫ້ອງວ່າການເມືອງ	Phongsaly	Samphanh	ນາງ ບົວບານ ໄຊຍະສຸກ	Female	Phongsaly	Samphanh	Midwives		District hospital	ໂຮງຫມໍເມືອງສຳພັນ	Post-test		1a	2b	3b	4b	5b	6b	7a	8a	9a	10c	11c	12c	13a	14c	15b	16a	17a	18c	19b	20a	1	1	1	1	1	1	1	1	0	1	1	1	1	1	0	1	1	1	1	1	18		758912422	2f188daa-a3dc-42a6-9b53-a4a04d089303	2026-03-20			submitted_via_web		vmChQJvBeMcaxQdpBRGUjK		uuid:d6db55f6-a5a6-42e4-a2ab-1d565b97ca79	34
+2026-03-18	2026-03-23		2026-03-20	ຫ້ອງວ່າການເມືອງບຸນເໝືອ	Phongsaly	Boun-Neua	ນາງພອນແກ້ວຜີວລາວລີ	Female	Phongsaly	Boun-Tay	Midwives		District hospital	ໂຮງໝໍ	Post-test		1a	2b	3b	4b	5b	6b	7a	8c	9a	10c	11b	12a	13a	14c	15b	16a	17c	18a	19b	20a	1	1	1	1	1	1	1	0	0	1	0	0	1	1	0	1	0	0	1	1	13		758912423	00e7a151-d009-45e5-82b7-6b0e4632c932	2026-03-20			submitted_via_web		vmChQJvBeMcaxQdpBRGUjK		uuid:c55e3073-e0b1-4842-b42f-b6c38a55121f	35
+2026-03-18	2026-03-23		2026-03-20	ຫ້ອງວາ່ການເມືອງ	Phongsaly	Boun-Tay	ເຂັມພະສອນ ລີນາວເຍີ	Female	Phongsaly	Boun-Tay	Nurses		District hospital	ໂຮງໜໍ	Post-test		1a	2b	3b	4b	5b	6b	7a	8c	9a	10c	11b	12a	13a	14c	15b	16a	17c	18a	19b	20a	1	1	1	1	1	1	1	0	0	1	0	0	1	1	0	1	0	0	1	1	13		758912448	7f4a4204-b200-4fd2-9ab4-c00904d6964c	2026-03-20			submitted_via_web		vmChQJvBeMcaxQdpBRGUjK		uuid:121e97d9-ebc9-4371-8540-f31d3abb383d	36
+2026-03-18	2026-03-23		2026-03-20	ສະໂມສອນເມືອງບູນເໜືອ	Phongsaly	May	ທ.ພອນໄຂ.ດວງປະເສີດ	Male	Phongsaly	May	Doctors		District Health Office	ໂຮງຫມໍເມືອງໃຫ່ມ	Post-test		1a	2b	3b	4b	5a	6b	7a	8a	9c	10c	11c	12c	13a	14a	15b	16a	17b	18a	19b	20a	1	1	1	1	0	1	1	1	0	1	1	1	1	0	0	1	0	0	1	1	14		758912499	a4df4513-039b-46a4-a099-6eb08a42f191	2026-03-20			submitted_via_web		vmChQJvBeMcaxQdpBRGUjK		uuid:751c5f68-a006-4fa9-9975-ab48d4abfc18	37
+2026-03-18	2026-03-23		2026-03-20	ຫ້ອງວາການເມືອງບຸນເຫນືອ	Phongsaly	Boun-Neua	ບົວພັນ ລໍວັນຂຸນ	Female	Phongsaly	May	Doctors		District Health Office	ສາທາເມືອງໃຫມ່	Post-test		1a	2b	3b	4b	5b	6b	7a	8a	9c	10c	11c	12c	13a	14c	15c	16a	17a	18c	19b	20a	1	1	1	1	1	1	1	1	0	1	1	1	1	1	1	1	1	1	1	1	19		758912519	7e560e2f-8df7-4b71-9f8a-d098904fd39a	2026-03-20			submitted_via_web		vmChQJvBeMcaxQdpBRGUjK		uuid:359ec57b-84e6-441f-bb26-7f73ff73a390	38
+2026-03-18	2026-03-23		2026-03-20	້ຫ້ອງວາການເມືອງບຸນເຫນືອ	Phongsaly	Boun-Neua	ທ້າວ ພັດທະວິນ ມະນີວົງສີ	Male	Phongsaly	May	Doctors		District hospital	ໂຮງຫມໍເມືອງໃຫມ່	Post-test		1a	2b	3b	4b	5b	6b	7a	8a	9b	10c	11c	12c	13a	14c	15c	16a	17a	18c	19b	20a	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	20		758912522	66e8726f-a446-4629-b8a2-a2d2deba6248	2026-03-20			submitted_via_web		vmChQJvBeMcaxQdpBRGUjK		uuid:dffe5a47-f6ea-4053-a689-f18f6081f1e4	39
+2026-03-20	2026-03-23		2026-03-20	ຫ້ອງວ່າການເມືອງບຸນເຫນືອ	Phongsaly	May	ນາງ ຫລ້າ ຫລວງໄມໝັ້ນ	Female	Phongsaly	May	Doctors		District hospital	ໂຮງມຫມໍ	Post-test		1a	2b	3b	4b	5b	6b	7a	8a	9b	10c	11c	12c	13a	14c	15c	16a	17a	18c	19b	20a	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	20		758912526	53b5b780-9164-40e6-ace1-031e68983602	2026-03-20			submitted_via_web		vmChQJvBeMcaxQdpBRGUjK		uuid:b1a794a0-bb40-4d31-a901-be62f0f9d53b	40
+2026-03-20	2026-03-23		2026-03-20	ຫ້ອງວ່າການເມືອງ	Phongsaly	Boun-Neua	ນ.ສົມຈິດ ໄຊຍະວົງ	Female	Phongsaly	Boun-Neua	Doctors		Provincial Health Office	ພະແນກສາທາລະນະສຸກແຂວງ	Post-test		1a	2b	3b	4b	5b	6b	7a	8a	9a	10c	11c	12c	13a	14c	15b	16a	17a	18c	19b	20a	1	1	1	1	1	1	1	1	0	1	1	1	1	1	0	1	1	1	1	1	18		758912540	9a2e3f08-6c38-4f60-b753-0932051a2f48	2026-03-20			submitted_via_web		vmChQJvBeMcaxQdpBRGUjK		uuid:df2b5965-1a85-4213-93f8-739b2d468149	41
+2026-03-18	2026-03-23		2026-03-20	ຫ້ອງວ່າການເມືອງບຸນເໜືອ	Phongsaly	Boun-Neua	ວີສະຫວັນ ແສງອິນທອງ	Female	Phongsaly	Boun-Tay	Other	ແມ່ ແລະ ເດັກສາທາເມືອງ	District Health Office	ຫ້ອງການສາທາເມືອງ	Post-test		1a	2b	3b	4b	5b	6b	7a	8c	9a	10c	11b	12a	13a	14c	15b	16a	17c	18a	19b	20a	1	1	1	1	1	1	1	0	0	1	0	0	1	1	0	1	0	0	1	1	13		758912574	5968fdda-ac15-43ed-8cb6-73224a25f077	2026-03-20			submitted_via_web		vmChQJvBeMcaxQdpBRGUjK		uuid:cab0b164-333b-47e0-8bde-230480f8bc7d	42
+2026-03-18	2026-03-23		2026-03-20	ຫ້ອງວະການເມືອງຜົ້ງສາລີ	Phongsaly	Boun-Neua	ນາງ ຄອນສະໝອນ ພູມມະແສນ	Female	Phongsaly	Phongsaly	Midwives		District hospital	ໂຮງໝໍຊຸມຊົນຜົ້ງສາລີ	Post-test		1a	2b	3b	4b	5b	6b	7a	8a	9a	10c	11c	12c	13a	14c	15a	16a	17c	18c	19b	20a	1	1	1	1	1	1	1	1	0	1	1	1	1	1	0	1	0	1	1	1	17		758912680	bf82622f-3311-4861-9a4d-1557de738dbf	2026-03-20			submitted_via_web		vmChQJvBeMcaxQdpBRGUjK		uuid:168921a1-e48f-4dc0-b08d-94bfe1543fea	43
+2026-03-18	2026-03-23		2026-03-20	ຫ້ອງວ່າການເມືອງ	Phongsaly	Samphanh	ນ ສອນເພັດ ລາວເຊີນ	Female	Phongsaly	Samphanh	Midwives		District hospital	ຫ້ອງວ່າການເມືອງ	Post-test		1a	2b	3b	4b	5b	6b	7a	8a	9a	10c	11c	12c	13a	14c	15b	16a	17a	18c	19b	20a	1	1	1	1	1	1	1	1	0	1	1	1	1	1	0	1	1	1	1	1	18		758912698	4626c3ae-2243-4dd3-b85d-22a4911a865f	2026-03-20			submitted_via_web		vmChQJvBeMcaxQdpBRGUjK		uuid:c182b97b-1fae-47ab-ad73-6ed5f6865534	44
+2026-03-18	2026-03-23		2026-03-20	ຫ້ອງວ່າການເມືອງ	Phongsaly	Boun-Neua	ນ້ຄຳ ມະໂມທຳ	Female	Phongsaly	Phongsaly	Primary health care		District Health Office	ສາທາເມືອງ	Post-test		1a	2b	3b	4b	5b	6b	7a	8a	9a	10c	11c	12c	13a	14c	15b	16a	17a	18c	19b	20a	1	1	1	1	1	1	1	1	0	1	1	1	1	1	0	1	1	1	1	1	18		758912763	b96d4f8e-0793-47ed-b46d-690f89ecdcaa	2026-03-20			submitted_via_web		vmChQJvBeMcaxQdpBRGUjK		uuid:e3de2b53-4bdd-4a93-85dd-8ff8929078a6	45
+2026-03-18	2026-03-23		2026-03-20	ຫ້ອງວາການບຸນເໜືອ	Phongsaly	May	ນາງ ບົວເເພງ ວິໄລນົນ	Female	Phongsaly	May	Midwives		District hospital	ໂຮງໝໍເມືອງໃຫມ່	Post-test		1a	2b	3b	4b	5a	6b	7a	8a	9c	10c	11c	12c	13a	14a	15c	16a	17b	18c	19b	20a	1	1	1	1	0	1	1	1	0	1	1	1	1	0	1	1	0	1	1	1	16		758912767	a26897dc-4816-4f5d-96b4-5ebf14c9ed9e	2026-03-20			submitted_via_web		vmChQJvBeMcaxQdpBRGUjK		uuid:bf07cf2c-8ecc-474c-bbfd-368948bd266a	46
+2026-03-18	2026-03-23		2026-03-20	ຫ້ອງວ່າການເມຶ້ອງບູນເໜຶອ	Phongsaly	Boun-Tay	ນາງ ແສງເດືອນ ພິມມະຈັນ	Female	Phongsaly	Boun-Tay	Doctors		District hospital	ຫ້ອງການໂຮງໜໍດມຶ້ອງບູນໃຕ້	Post-test		1a	2b	3b	4b	5b	6b	7a	8c	9a	10c	11b	12a	13a	14c	15b	16a	17c	18a	19a	20a	1	1	1	1	1	1	1	0	0	1	0	0	1	1	0	1	0	0	0	1	12		758912776	72a76409-f0e5-47fc-9c1a-e1c19b0fe96b	2026-03-20			submitted_via_web		vmChQJvBeMcaxQdpBRGUjK		uuid:f20734cf-92a9-41a1-8956-05d91c87b574	47
+2026-03-20	2026-03-23		2026-03-18	ເມືອງບຸນເໜືອ	Phongsaly	Boun-Neua	ທ ສົມຕຸ້ຍ	Male	Phongsaly	May	Other	ສະຖິຕິ-ແຜນການ(ຜູ້ປະສານງານ)​	District Health Office	ຫ້ອງການສາທາລະນະສຸກເມືອງໃໝ່	Post-test		1a	2b	3b	4b	5b	6b	7a	8a	9b	10c	11c	12c	13a	14c	15c	16a	17a	18c	19b	20a	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	20		758912786	d7dea223-111f-43ec-80fa-44d51efc0099	2026-03-20			submitted_via_web		vmChQJvBeMcaxQdpBRGUjK		uuid:cc92ece8-49bf-4db2-ab04-cb5c8f41718d	48
+2026-03-18	2026-03-23		2026-03-20	ຫ້ອງວ່າການເມືອງບຸນເໝືອ	Phongsaly	Boun-Neua	ນ ສີຈັນ ພູມພະຈັນ	Female	Phongsaly	May	Nurses		District hospital	ໂຮງໝໍເມືອງໃຫ່ມ	Post-test		1a	2b	3b	4b	5b	6b	7a	8a	9b	10c	11c	12c	13a	14c	15c	16a	17a	18a	19b	20a	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	0	1	1	19		758912849	6349894f-6d2e-4e35-af7e-688976a91ca5	2026-03-20			submitted_via_web		vmChQJvBeMcaxQdpBRGUjK		uuid:23056177-9d3c-431a-b83e-23c4a478e19b	49
+2026-03-18	2026-03-23		2026-03-20	ຫອ້ງວ່າການເມືອງບຸນເຫນືອ	Phongsaly	Boun-Neua	ນາງ ວອນມະນີ ສຸລິເດດ	Female	Phongsaly	Phongsaly	Doctors		District Health Office	ສາທາເມືອງຜົ້ງສາລີ	Post-test		1a	2b	3b	4b	5b	6b	7a	8a	9a	10c	11c	12c	13a	14c	15a	16a	17a	18a	19b	20a	1	1	1	1	1	1	1	1	0	1	1	1	1	1	0	1	1	0	1	1	17		758912938	e1c0b569-38ce-43a6-8c09-5fcc9afcaac5	2026-03-20			submitted_via_web		vmChQJvBeMcaxQdpBRGUjK		uuid:7d5868ad-f274-4486-935f-7ba305839bef	50
+2026-03-20	2026-03-23		2026-03-20	ຫອ້ງການວ່າເມືອງບຸນເໜືອ	Phongsaly	Phongsaly	ນາງສີແພງ ແກ້ວນາ	Female	Phongsaly	Phongsaly	Primary health care		District hospital	ໂຮງໜໍຊຸມຊົນ	Post-test		1a	2b	3b	4b	5b	6b	7a	8a	9a	10c	11c	12c	13a	14c	15b	16a	17a	18a	19b	20a	1	1	1	1	1	1	1	1	0	1	1	1	1	1	0	1	1	0	1	1	17		758912951	958067f3-3654-4d1c-b0e1-71e6366f7658	2026-03-20			submitted_via_web		vmChQJvBeMcaxQdpBRGUjK		uuid:281ddace-708a-408e-9c27-3b9674b41a17	51
+2026-03-18	2026-03-23		2026-03-20	ຫ້ອງວ່າການປົກຄອງເມືອງ	Phongsaly	Samphanh	ທ ພັນທະລີ ແກ້ວນາລີ	Male	Phongsaly	Samphanh	Other	ຜູ້ປະສານງານຂັ້ນເມືອງ	District Health Office	ຫ້ອງການສາທາລະນະສຸກເມືອງ	Post-test		1a	2b	3b	4b	5b	6b	7a	8a	9a	10c	11c	12c	13a	14c	15b	16a	17c	18a	19b	20a	1	1	1	1	1	1	1	1	0	1	1	1	1	1	0	1	0	0	1	1	16		758912992	d50bb3f8-5cfa-4970-8eb4-096a46c07b73	2026-03-20			submitted_via_web		vmChQJvBeMcaxQdpBRGUjK		uuid:c7e66ce9-c344-4439-a960-926db5dc3df8	52
+2026-03-20	2026-03-23		2026-03-20	ຫ້ອງວ່າການບຸນເໝືອ	Phongsaly	Boun-Neua	ນ.ຈັນທີ	Female	Phongsaly	Boun-Neua	Midwives		District Health Office	ຫ້ອງວ່າການເມືອງບຸນເໝືອ	Post-test		1a	2b	3b	4b	5b	6b	7a	8c	9a	10c	11b	12a	13a	14c	15b	16a	17c	18a	19a	20a	1	1	1	1	1	1	1	0	0	1	0	0	1	1	0	1	0	0	0	1	12		758913091	36c99b0d-7ce8-43a3-b1c2-f52ff285356e	2026-03-20			submitted_via_web		vmChQJvBeMcaxQdpBRGUjK		uuid:643dbc32-5d78-4878-a233-8399ef2763e6	53
+2026-03-20	2026-03-23		2026-03-20	ຫອ້ງວ່າການເມືອງບຸນເໝຶອ	Phongsaly	Boun-Neua	ນ ສີແພ ທີດອອນຫຼ້າ	Female	Phongsaly	Boun-Neua	Doctors		District Health Office	ຫອ້ງການສາທາເມືອງ	Post-test		1a	2b	3b	4a	5b	6b	7a	8a	9a	10c	11c	12c	13a	14c	15b	16a	17a	18a	19b	20a	1	1	1	0	1	1	1	1	0	1	1	1	1	1	0	1	1	0	1	1	16		758913128	9d599a3c-1810-4eac-84cc-ba9fdcb6ad5d	2026-03-20			submitted_via_web		vmChQJvBeMcaxQdpBRGUjK		uuid:f8641fb5-c1a5-4ce5-871d-db97e935d596	54
+2026-03-18	2026-03-23		2026-03-20	ຫ້ອງວ່າການເມືອງປົ້ງສາລີ	Phongsaly	Phongsaly	ດຣ ສີທອງ ໂງ່ນພາດີ	Female	Phongsaly	Phongsaly	Doctors		District hospital	ໂຮງຫມໍຊຸມຊົນເມືອງຜົ້ງສາລີ	Post-test		1a	2b	3b	4a	5b	6b	7a	8a	9a	10c	11c	12c	13a	14c	15a	16a	17b	18c	19b	20a	1	1	1	0	1	1	1	1	0	1	1	1	1	1	0	1	0	1	1	1	16		758913200	d07fb02f-c517-40f5-a1cb-69bed6f7b711	2026-03-20			submitted_via_web		vmChQJvBeMcaxQdpBRGUjK		uuid:2d28f8c3-33d1-406a-a25e-f82bf57ee087	55
+2026-03-18	2026-03-23		2026-03-20	ຫອ້ງວາ່ການເມື່ອງ	Phongsaly	Phongsaly	ນາງຂັນຄໍາຫີ້ຼນຕານ	Female	Phongsaly	Phongsaly	Nurses		District hospital	ຫ້ອງວ່າການເມືອງບຸນເຫນືອ	Post-test		1a	2c	3b	4a	5b	6b	7c	8a	9a	10c	11c	12c	13a	14c	15b	16a	17b	18c	19b	20a	1	0	1	0	1	1	0	1	0	1	1	1	1	1	0	1	0	1	1	1	14		758913342	60afc021-e9d9-4c45-bb1a-81a77e245eef	2026-03-20			submitted_via_web		vmChQJvBeMcaxQdpBRGUjK		uuid:3c09e8bc-d760-4c65-b99a-85567cba96b7	56
+2026-03-18	2026-03-23		2026-03-20	ຫ້ອງວ່າການເມືອງບູນເໜືອ	Phongsaly	Boun-Neua	ພັນມະນີ ສີປະເສິດ	Female	Phongsaly	Phongsaly	Midwives		District hospital	ໂຮງໝໍຊຸມຊົນເມືອງຜົ້ງສາລີ	Post-test		1a	2b	3b	4b	5b	6b	7a	8a	9a	10c	11c	12c	13a	14c	15b	16a	17a	18c	19b	20a	1	1	1	1	1	1	1	1	0	1	1	1	1	1	0	1	1	1	1	1	18		758932875	b47aa58a-0d56-4fd0-ba6d-0abb28848cc0	2026-03-20			submitted_via_web		vmChQJvBeMcaxQdpBRGUjK		uuid:20ab392d-8b35-413c-8173-5ed006bebe33	57
+2026-03-20	2026-03-23		2026-03-20	ຫ້ອງວ່າການປົກຄອງບຸນເໜືອ	Phongsaly	Boun-Neua	ດຮ ໄຊວັນ ວົງສາ	Male	Phongsaly	Boun-Tay	Doctors		District Health Office	ຫ້ອງການສາທາເມືອງບຸນໃຕ້	Post-test		1a	2b	3b	4b	5a	6b	7a	8b	9a	10c	11b	12a	13a	14a	15b	16a	17c	18c	19b	20a	1	1	1	1	0	1	1	0	0	1	0	0	1	0	0	1	0	1	1	1	12		758933462	ba4905f2-aec3-406f-973c-eb48a8b3f21c	2026-03-20			submitted_via_web		vmChQJvBeMcaxQdpBRGUjK		uuid:9efb976a-9b4b-40b7-9e4e-5527983830ed	58
+2026-03-24	2026-03-25		2026-03-24	ຫ້ອງການປະກັນສັງຄົມແຂວງ	Oudomxay	Xay	ສຸລິນໄຊ	Male	Oudomxay	Pakbeng	Other	ຄະນະໂຮງໝໍ	District hospital	ໂຮງໝໍເມືອງປາກແບງ	Pre-test		1a	2b	3a	4b	5b	6b	7a	8b	9a	10c	11a	12c	13a	14b	15c	16a	17a	18a	19a	20a	1	1	0	1	1	1	1	0	0	1	0	1	1	0	1	1	1	0	0	1	13		759804961	3cf8f4e0-2dab-40e4-84e5-d8c507085347	2026-03-24			submitted_via_web		vsXvzCWkMyVfniXAJUu9xq		uuid:b5246cdd-05ba-4183-b247-442499bd5ec9	59
+2026-03-24	2026-03-25		2026-03-24	ຫ້ອງການປະກັນສັງຄົມແຂວງ	Oudomxay	Xay	ດຣ ແພງດີ ຄຳແກ້ວມະນີ	Female	Oudomxay	Nga	Other	ຄະນະຫ້ອງການ ປະຈຳການໂຮງໝໍເມືອງ	District hospital	ຫ້ອງການສາທາເມືອງ	Pre-test		1a	2c	3b	4b	5b	6a	7a	8c	9c	10c	11c	12a	13a	14c	15b	16a	17a	18c	19b	20a	1	0	1	1	1	0	1	0	0	1	1	0	1	1	0	1	1	1	1	1	14		759805083	516ff6d1-7018-487a-83e7-48abf329e706	2026-03-24			submitted_via_web		vsXvzCWkMyVfniXAJUu9xq		uuid:b4deb3e8-8e13-47ef-9cf9-3409b0381136	60
+2026-03-24	2026-03-25		2026-03-24	ຫ້ອງການປະກັນສັງຄົມແຂວງ	Oudomxay	Xay	ພິດສະໄໝ ແກ້ວວົງສາ	Female	Oudomxay	Beng	Nurses		District Health Office	ຫ້ອງການສາທາເມືອງແບງໜ່ວຍງານອະນາໄມ	Pre-test		1a	2b	3b	4a	5b	6b	7a	8c	9a	10c	11c	12c	13a	14a	15b	16a	17c	18a	19a	20a	1	1	1	0	1	1	1	0	0	1	1	1	1	0	0	1	0	0	0	1	12		759805394	9a7b5504-d7c8-4135-8893-1e1b4de6a990	2026-03-24			submitted_via_web		vsXvzCWkMyVfniXAJUu9xq		uuid:6856a311-ad2a-4abf-a61f-62e344accf4f	61
+2026-03-24	2026-03-25		2026-03-24	ຫ້ອງການປະກັນສັງຄົມແຂວງ	Oudomxay	Xay	ດຣ.ພັມມະເລດ ພົມມະລີສັກ	Male	Oudomxay	Houn	Doctors		District hospital	ສາທາເມືອງຮູນ	Pre-test		1a	2a	3b	4b	5c	6b	7a	8c	9c	10c	11c	12b	13c	14c	15b	16a	17a	18b	19a	20a	1	0	1	1	0	1	1	0	0	1	1	0	0	1	0	1	1	0	0	1	11		759805424	f60463cc-639f-42ac-9652-10d6b3cfeaa4	2026-03-24			submitted_via_web		vsXvzCWkMyVfniXAJUu9xq		uuid:fd67377a-a035-47b4-b4fc-fbbbfa88a601	62
+2026-03-24	2026-03-25		2026-03-24	ຫ້ອງການປະກັນສັງຄົມແຂວງ	Oudomxay	Xay	ດຣ ນາງສົມຈິດ ພົງສະຫວັດ	Female	Oudomxay	Houn	Doctors		District hospital	ໂຮງໝໍເມືອງຮຸນ ຈຸງານ ອອກລູກ-ພະຍາດຍີງ	Pre-test		1a	2b	3a	4b	5c	6a	7b	8c	9c	10c	11c	12a	13a	14b	15b	16a	17a	18c	19a	20a	1	1	0	1	0	0	0	0	0	1	1	0	1	0	0	1	1	1	0	1	10		759805491	4ec6e2b0-b2ab-44df-8ec5-5797cee93565	2026-03-24			submitted_via_web		vsXvzCWkMyVfniXAJUu9xq		uuid:80fd990a-284b-474f-be1e-36f42408084f	63
+2026-03-24	2026-03-25		2026-03-24	ຫ້ອງການປະກັນສັງຄົມແຂວງ	Oudomxay	Xay	ຕ໋າ	Female	Oudomxay	Nga	Nurses		District hospital	ໂຮງໝໍເມືອງງາ	Pre-test		1a	2c	3b	4a	5a	6b	7a	8c	9a	10c	11b	12c	13a	14a	15b	16a	17a	18a	19a	20a	1	0	1	0	0	1	1	0	0	1	0	1	1	0	0	1	1	0	0	1	10		759805504	c72a129f-4872-4156-8949-d3c07e0418a7	2026-03-24			submitted_via_web		vsXvzCWkMyVfniXAJUu9xq		uuid:cac7277d-5c1f-4ecb-aa5d-c98760c80c00	64
+2026-03-24	2026-03-25		2026-03-24	ຫ້ອງການປະກັນສັງຄົມແຂວງ	Oudomxay	Xay	ນາງໄພວອນ ແກ້ວບຸນມີ	Female	Oudomxay	Beng	Doctors		District hospital	ໂຮງໝໍເມືອງແບງ	Pre-test		1a	2b	3b	4b	5b	6a	7a	8c	9c	10c	11c	12c	13a	14b	15b	16a	17c	18a	19a	20b	1	1	1	1	1	0	1	0	0	1	1	1	1	0	0	1	0	0	0	0	11		759805624	f15cf962-4c2d-4a1c-badb-16adb6def286	2026-03-24			submitted_via_web		vsXvzCWkMyVfniXAJUu9xq		uuid:d17f6b78-38e1-4e0c-b303-aa114d299396	65
+2026-03-24	2026-03-25		2026-03-24	ຫ້ອງການປະກັນສັງຄົມແຂວງ	Oudomxay	Xay	ນາງ ດວງມາລີ ອິນຕາຈັກ	Female	Oudomxay	Pakbeng	Midwives		District hospital	ຫ້ອງການສາທາລະນະສຸກ	Pre-test		1a	2b	3b	4b	5a	6b	7a	8a	9b	10c	11c	12c	13a	14b	15b	16a	17a	18c	19a	20a	1	1	1	1	0	1	1	1	1	1	1	1	1	0	0	1	1	1	0	1	16		759805715	4db950af-84d0-4315-9270-6f10b7bed564	2026-03-24			submitted_via_web		vsXvzCWkMyVfniXAJUu9xq		uuid:b4c78218-285e-431e-beb0-d7d729e90455	66
+2026-03-24	2026-03-25		2026-03-24	ຫ້ອງການປະກັນສັງຄົມແຂວງ	Oudomxay	Xay	ນາງ ວົງເດືອນ ພາສັນຍາ	Female	Oudomxay	Houn	Midwives		District hospital	ໂຮງໝໍເມືອງຮຸນຈຸງານປະສູດພະຍາດຍິງ	Pre-test		1a	2b	3b	4b	5a	6b	7a	8c	9c	10b	11c	12a	13a	14c	15b	16a	17b	18c	19c	20a	1	1	1	1	0	1	1	0	0	0	1	0	1	1	0	1	0	1	0	1	12		759805721	94d1f8af-fd3e-43b3-8c4b-aaeb03ee8c53	2026-03-24			submitted_via_web		vsXvzCWkMyVfniXAJUu9xq		uuid:1b8ec3e8-a304-4b01-9829-fd572ff0b9fd	67
+2026-03-24	2026-03-25		2026-03-24	ຫ້ອງການປະກັນສັງຄົມແຂວງ	Oudomxay	Xay	ແກ້ວມະນີ	Female	Oudomxay	Nga	Doctors		District hospital	ສາທາເມືອງງາ	Pre-test		1a	2c	3b	4b	5b	6a	7a	8c	9c	10b	11a	12c	13a	14b	15b	16a	17b	18c	19a	20a	1	0	1	1	1	0	1	0	0	0	0	1	1	0	0	1	0	1	0	1	10		759805749	cdda8a15-406f-44d9-92bc-e81a3c3bcc51	2026-03-24			submitted_via_web		vsXvzCWkMyVfniXAJUu9xq		uuid:2d3cbdaa-af87-46a5-811e-6e19807be46f	68
+2026-03-24	2026-03-25		2026-03-24	ຫ້ອງການປະກັນສັງຄົມແຂວງ	Oudomxay	Xay	ນາງປີ່ນ	Female	Oudomxay	Houn	Midwives		District Health Office	ຫ້ອງການສາທາເມືອງ	Pre-test		1a	2b	3b	4b	5c	6b	7a	8a	9a	10b	11c	12b	13a	14c	15b	16a	17a	18a	19b	20c	1	1	1	1	0	1	1	1	0	0	1	0	1	1	0	1	1	0	1	0	13		759805766	9d6a8a1b-7558-4bdd-a04e-0c66051a7da1	2026-03-24			submitted_via_web		vsXvzCWkMyVfniXAJUu9xq		uuid:3100423e-953b-4e49-ae0f-66683980fcc7	69
+2026-03-24	2026-03-25		2026-03-24	ຫ້ອງການປະກັນສັງຄົມແຂວງ	Oudomxay	Xay	ທ.ລ້ວນ ໄຊຍະເທີ	Male	Oudomxay	Pakbeng	Nurses		District hospital	ໂຮງໝໍເມືອງ	Pre-test		1a	2b	3b	4b	5c	6b	7a	8c	9c	10c	11c	12c	13a	14b	15b	16b	17c	18c	19a	20b	1	1	1	1	0	1	1	0	0	1	1	1	1	0	0	0	0	1	0	0	11		759805788	e75ccdf4-0c9a-4f52-b87f-a3bc1fbe3eff	2026-03-24			submitted_via_web		vsXvzCWkMyVfniXAJUu9xq		uuid:2cd8da42-d6b9-4313-bde2-5e315d0ee38b	70
+2026-03-24	2026-03-25		2026-03-24	ຫ້ອງການປະກັນສັງຄົມແຂວງ	Oudomxay	Xay	ພອຍໄພລິນ ສີລິໄຊ	Female	Oudomxay	Beng	Nurses		District hospital	ໂຮງໝໍເມືອງແບງ	Pre-test		1a	2c	3b	4b	5c	6b	7a	8c	9c	10c	11c	12c	13a	14a	15a	16a	17c	18c	19c	20b	1	0	1	1	0	1	1	0	0	1	1	1	1	0	0	1	0	1	0	0	11		759805880	b57fa225-1e59-48bc-8b3d-ca2bb74f977c	2026-03-24			submitted_via_web		vsXvzCWkMyVfniXAJUu9xq		uuid:045e961c-e07c-4292-9ad7-3db2a1cc3f0a	71
+2026-03-24	2026-03-25		2026-03-24	ຫ້ອງການປະກັນສັງຄົມແຂວງ	Oudomxay	Xay	ທ ສິງໄຊ ສີອຳໄພ	Male	Oudomxay	Beng	Doctors		District hospital	ໂຮງໝໍເມືອງແບງ	Pre-test		1a	2b	3a	4a	5a	6b	7a	8c	9b	10b	11c	12c	13a	14c	15b	16b	17c	18c	19c	20b	1	1	0	0	0	1	1	0	1	0	1	1	1	1	0	0	0	1	0	0	10		759805899	9f9ef2a1-432b-455d-98fc-40825d67df00	2026-03-24			submitted_via_web		vsXvzCWkMyVfniXAJUu9xq		uuid:182ceaa2-1ee9-4a97-847c-7df13bd42c72	72
+2026-03-24	2026-03-24		2026-03-24	ຫ້ອງປະຊຸມການເງີນແຂວງສາລະວັນ	Salavan	Salavanh	ດຣ ສຸນາລີ ຈັນທະລາ	Female	Salavan	Laongam	Doctors		District hospital	ໂຮງໝໍເມືອງເລົ່າງາມ	Pre-test		1a	2b	3b	4b	5c	6b	7a	8c	9a	10c	11a	12b	13a	14c	15b	16a	17a	18c	19c	20c	1	1	1	1	0	1	1	0	0	1	0	0	1	1	0	1	1	1	0	0	12		759805923	d40ad365-1527-4a82-808b-80344e189161	2026-03-24			submitted_via_web		vsXvzCWkMyVfniXAJUu9xq		uuid:d40ad365-1527-4a82-808b-80344e189161	73
+2026-03-24	2026-03-25		2026-03-24	ຫ້ອງການປະກັນສັງຄົມແຂວງ	Oudomxay	Xay	ໜູນີ່	Female	Oudomxay	Pakbeng	Nurses		District Health Office	ຫ້ອງການສາທາເມືອງປາກແບງ	Pre-test		1a	2b	3b	4b	5b	6a	7a	8b	9c	10c	11c	12b	13a	14c	15b	16a	17a	18c	19b	20a	1	1	1	1	1	0	1	0	0	1	1	0	1	1	0	1	1	1	1	1	15		759805955	8c28ec2b-3a2b-422d-9224-6c4dda42a415	2026-03-24			submitted_via_web		vsXvzCWkMyVfniXAJUu9xq		uuid:34903eab-e683-4247-8fc1-e8189cc2e0ef	74
+2026-03-24	2026-03-24		2026-03-24	ຫ້ອງປະຊຸມຫ້ອງການການເງິນ	Salavan	Salavanh	ປານີໄຊ ຄຸນແສງມະນີວົງ	Female	Salavan	Toumlane	Midwives		District hospital	ໂຮງໝໍເມືອງຕຸ້ມລານ	Pre-test		1a	2b	3b	4a	5c	6b	7a	8a	9b	10a	11c	12c	13a	14c	15b	16a	17a	18a	19c	20a	1	1	1	0	0	1	1	1	1	0	1	1	1	1	0	1	1	0	0	1	14		759805974	7cb49d91-880d-4baa-851e-e9dee9e6382b	2026-03-24			submitted_via_web		vsXvzCWkMyVfniXAJUu9xq		uuid:7cb49d91-880d-4baa-851e-e9dee9e6382b	75
+2026-03-24	2026-03-24		2026-03-24	ຫອ້ງປະຊຸມຫອ້ງການການເງິນ	Salavan	Salavanh	ນາງອານົງນິດ ແກ້ວສີແພງ	Female	Salavan	Toumlane	Doctors		District hospital	ໂຮງໝໍເມືອງຕຸ້ມລານ	Pre-test		1a	2b	3b	4a	5c	6b	7a	8a	9b	10a	11a	12c	13a	14c	15b	16a	17a	18a	19c	20a	1	1	1	0	0	1	1	1	1	0	0	1	1	1	0	1	1	0	0	1	13		759805975	38af07fa-fadb-47d9-bcfa-51e9155f5818	2026-03-24			submitted_via_web		vsXvzCWkMyVfniXAJUu9xq		uuid:38af07fa-fadb-47d9-bcfa-51e9155f5818	76
+2026-03-24	2026-03-25		2026-03-24	ຫ້ອງການປະກັນສັງຄົມແຂວງ	Oudomxay	Xay	ນ ສົມພອນສີລິສຸກ	Female	Oudomxay	Nga	Midwives		District hospital	ສາທາເມືອງງາ	Pre-test		1a	2b	3b	4a	5c	6b	7a	8c	9c	10c	11c	12c	13a	14b	15b	16a	17a	18a	19a	20a	1	1	1	0	0	1	1	0	0	1	1	1	1	0	0	1	1	0	0	1	12		759806034	6f86be7d-f57a-4528-a19e-39e1897efd25	2026-03-24			submitted_via_web		vsXvzCWkMyVfniXAJUu9xq		uuid:44ad3070-9918-4acf-a0be-d5572da0eee0	77
+2026-03-24	2026-03-25		2026-03-24	ຫ້ອງການປະກັນສັງຄົມແຂວງ	Oudomxay	Xay	ພອນມະນີພັນທະວົງ	Female	Oudomxay	Nga	Midwives		District hospital	ສາທາເມືອງງາ	Pre-test		1a	2b	3a	4b	5a	6a	7a	8c	9c	10c	11c	12c	13a	14b	15b	16a	17a	18c	19a	20a	1	1	0	1	0	0	1	0	0	1	1	1	1	0	0	1	1	1	0	1	12		759806094	870a28dc-ccc3-414c-98f0-29e70c6e7f9c	2026-03-24			submitted_via_web		vsXvzCWkMyVfniXAJUu9xq		uuid:5342156d-917d-4a3b-876a-03fe8b9793e6	78
+2026-03-24	2026-03-24		2026-03-24	ຫ້ອງການການເງີນ	Salavan	Salavanh	ນາງ ດານາກອນ ວົງຄຳແພງ	Female	Salavan	Lakhonepheng	Nurses		District Health Office	ຫ້ອງການສາທາລະນະສຸກເມືອງ	Pre-test		1a	2b	3b	4a	5b	6b	7a	8a	9c	10c	11c	12b	13a	14c	15b	16a	17a	18c	19b	20a	1	1	1	0	1	1	1	1	0	1	1	0	1	1	0	1	1	1	1	1	16		759806127	bc8a0cfd-94a4-426d-808f-f93a8f7c9c36	2026-03-24			submitted_via_web		vsXvzCWkMyVfniXAJUu9xq		uuid:bc8a0cfd-94a4-426d-808f-f93a8f7c9c36	79
+2026-03-24	2026-03-24		2026-03-24	ຫ້ອງປະຊຸມ ຫ້ອງການ ການເງິນແຂວງສາລະວັນ	Salavan	Salavanh	ມຸກດາ ສັກທອງດຳ	Female	Salavan	Laongam	Doctors		District hospital	ໂຮງຫມໍເມືອງເລົ່າງາມ	Pre-test		1b	2b	3b	4b	5b	6b	7a	8a	9b	10c	11c	12c	13a	14b	15b	16a	17a	18c	19b	20a	0	1	1	1	1	1	1	1	1	1	1	1	1	0	0	1	1	1	1	1	17		759806131	99dfaf5c-14d8-423c-af1b-0751a1419e6b	2026-03-24			submitted_via_web		vsXvzCWkMyVfniXAJUu9xq		uuid:99dfaf5c-14d8-423c-af1b-0751a1419e6b	80
+2026-03-24	2026-03-25		2026-03-24	ຫ້ອງການປະກັນສັງຄົມແຂວງ	Oudomxay	Xay	ຈັນສຸກຈັນທະວົງ	Female	Oudomxay	Nga	Midwives		District Health Office	ໂຮງຫມໍເມືອງງາ	Pre-test		1a	2c	3b	4a	5b	6a	7a	8c	9c	10c	11c	12c	13a	14b	15b	16a	17c	18a	19b	20a	1	0	1	0	1	0	1	0	0	1	1	1	1	0	0	1	0	0	1	1	11		759806146	b8fbfe5c-0f3d-48a5-a494-8f580248aa51	2026-03-24			submitted_via_web		vsXvzCWkMyVfniXAJUu9xq		uuid:ab6a3408-704c-48df-bc0f-e3cfb2880576	81
+2026-03-24	2026-03-25		2026-03-24	ຫ້ອງການປະກັນສັງຄົມແຂວງ	Oudomxay	Xay	ນ ປ້ອມ ພູມມາວອນ	Female	Oudomxay	Pakbeng	Nurses		District hospital	ໂຮງໝໍເມືອງ ປາກແບງ	Pre-test		1a	2b	3b	4b	5c	6b	7a	8c	9b	10a	11c	12a	13c	14c	15b	16c	17c	18b	19b	20b	1	1	1	1	0	1	1	0	1	0	1	0	0	1	0	0	0	0	1	0	10		759806172	b48d8af6-c6ef-485b-8d25-276ae88e2464	2026-03-24			submitted_via_web		vsXvzCWkMyVfniXAJUu9xq		uuid:6aa7f237-e078-45d0-a5f5-d70cd902a2fa	82
+2026-03-24	2026-03-25		2026-03-24	ຫ້ອງການປະກັນສັງຄົມແຂວງ	Oudomxay	Xay	ນ.ມີນາ ສຸດາດວງ	Female	Oudomxay	Pakbeng	Nurses		District hospital	ໂຮງໝໍເມືອງປາກແບງ	Pre-test		1a	2b	3b	4b	5c	6b	7a	8c	9b	10b	11c	12c	13a	14b	15a	16a	17b	18a	19b	20a	1	1	1	1	0	1	1	0	1	0	1	1	1	0	0	1	0	0	1	1	13		759806186	9aab45a3-996e-4950-95eb-a3e908523c57	2026-03-24			submitted_via_web		vsXvzCWkMyVfniXAJUu9xq		uuid:a93e172e-fe44-41af-aa6f-0d2de4de86ae	83
+2026-03-24	2026-03-24		2026-03-24	ຫ້ອງການແຜນການການລົງທຶນແຂວງສາລະວັນ	Salavan	Laongam	ນາງ ສັ້ນສຸລິຍົງ	Female	Salavan	Laongam	Nurses		District Health Office	ຫ້ອງການສາທາເມືອງເລົ່າງາມ	Pre-test		1a	2a	3b	4b	5a	6b	7a	8a	9c	10a	11a	12a	13a	14c	15b	16a	17a	18c	19b	20a	1	0	1	1	0	1	1	1	0	0	0	0	1	1	0	1	1	1	1	1	13		759806310	5b9774af-d9eb-4633-8bdf-fa9d728bd4a8	2026-03-24			submitted_via_web		vsXvzCWkMyVfniXAJUu9xq		uuid:5b9774af-d9eb-4633-8bdf-fa9d728bd4a8	84
+2026-03-24	2026-03-25		2026-03-24	ຫ້ອງການປະກັນສັງຄົມແຂວງ	Oudomxay	Xay	ທ ບຸນຮອງ ວິໄລວົງສາ	Male	Oudomxay	Beng	Doctors		District Health Office	ຫິອງການສາທາເມືອງ	Pre-test		1a	2a	3b	4a	5c	6b	7a	8c	9c	10c	11b	12c	13a	14c	15b	16c	17a	18a	19b	20a	1	0	1	0	0	1	1	0	0	1	0	1	1	1	0	0	1	0	1	1	11		759806425	15bf7053-79a1-426e-9dfb-3ded3d94b9bf	2026-03-24			submitted_via_web		vsXvzCWkMyVfniXAJUu9xq		uuid:f516401f-f585-4165-9832-de90e5398532	85
+2026-03-24	2026-03-24		2026-03-24	ຫ້ອງປະຊຸມ ຫອ້ງການການເງິນ	Salavan	Salavanh	ດຣ ປາວີນາ ພົມມະລີ	Female	Salavan	Lakhonepheng	Doctors		District hospital	ໂຮງໝໍເມືອງລະຄອນເພັງ	Pre-test		1a	2b	3b	4b	5b	6a	7b	8a	9b	10c	11b	12a	13a	14c	15b	16a	17a	18a	19b	20a	1	1	1	1	1	0	0	1	1	1	0	0	1	1	0	1	1	0	1	1	14		759806468	53b441f2-73a4-4cfa-8578-a6d0cc6574dd	2026-03-24			submitted_via_web		vsXvzCWkMyVfniXAJUu9xq		uuid:53b441f2-73a4-4cfa-8578-a6d0cc6574dd	86
+2026-03-24	2026-03-24		2026-03-24	ຫ້ອງປະຊຸມພະແນກການເງິນ	Salavan	Toumlane	ນາງ ຜ່ານຟ້າ ອິນທະສອນ	Female	Salavan	Toumlane	Midwives		District Health Office	ຫ້ອງການສາທາເມືອງຕຸ້ມລານ	Pre-test		1a	2b	3a	4a	5a	6b	7a	8c	9b	10c	11c	12c	13a	14b	15a	16a	17a	18a	19c	20a	1	1	0	0	0	1	1	0	1	1	1	1	1	0	0	1	1	0	0	1	12		759806477	2c0f1ab0-9313-415a-968b-a6587f386d06	2026-03-24			submitted_via_web		vsXvzCWkMyVfniXAJUu9xq		uuid:2c0f1ab0-9313-415a-968b-a6587f386d06	87
+2026-03-24	2026-03-24		2026-03-24	ຫ້ອງປະຊຸມຫ້ອງການການເງີນແຂວງສາລະວັນ	Salavan	Salavanh	ນ ຕຸຕະ ພັນທະບູລີ	Female	Salavan	Toumlane	Midwives		District Health Office	ຫ້ອງການສາທາເມືອງຕຸ້ມລານ	Pre-test		1a	2b	3b	4b	5c	6c	7a	8c	9c	10c	11c	12c	13a	14c	15b	16a	17c	18a	19a	20a	1	1	1	1	0	0	1	0	0	1	1	1	1	1	0	1	0	0	0	1	12		759806506	c2575656-21cf-4aa0-bdd7-77b9e405921e	2026-03-24			submitted_via_web		vsXvzCWkMyVfniXAJUu9xq		uuid:c2575656-21cf-4aa0-bdd7-77b9e405921e	88
+2026-03-24	2026-03-24		2026-03-24	ຫ້ອງປະຊຸມຫ້ອງການ ການເງິນ	Salavan	Salavanh	ນ. ເພັດເດຊາ ຄຳທະວົງສາ	Female	Salavan	Lakhonepheng	Nurses		District hospital	ໂຮງໝໍເມືອງລະຄອນເພັງ	Pre-test		1a	2a	3b	4b	5c	6a	7a	8b	9c	10c	11c	12b	13a	14c	15b	16a	17a	18a	19c	20a	1	0	1	1	0	0	1	0	0	1	1	0	1	1	0	1	1	0	0	1	11		759806532	312a7b8d-6ac2-41fd-8c70-23c625f45cda	2026-03-24			submitted_via_web		vsXvzCWkMyVfniXAJUu9xq		uuid:312a7b8d-6ac2-41fd-8c70-23c625f45cda	89
+2026-03-24	2026-03-24		2026-03-24	ຫ້ອງປະຊຸມແຜນການການເງິນ	Salavan	Salavanh	ທິບພະພອນ	Female	Salavan	Salavanh	Nurses		District Health Office	ຫ້ອງການສາທາເມືອງ	Pre-test		1a	2a	3b	4a	5c	6a	7a	8c	9b	10c	11c	12a	13c	14b	15b	16a	17c	18c	19a	20a	1	0	1	0	0	0	1	0	1	1	1	0	0	0	0	1	0	1	0	1	9		759806546	d0f24da5-3c3e-4e81-bf22-4048a5771ab2	2026-03-24			submitted_via_web		vsXvzCWkMyVfniXAJUu9xq		uuid:d0f24da5-3c3e-4e81-bf22-4048a5771ab2	90
+2026-03-24	2026-03-24		2026-03-24	ຫ້ອງປະຊຸມພະແນກການເງິນ	Salavan	Khongxedon	ນາງ ດວງພອນ ເຫຼືອງທອງພູນ	Female	Salavan	Khongxedon	Midwives		District Health Office	ຫ້ອງການສາທາລະນະສຸກເມືອງຄົງເຊໂດນ	Pre-test		1a	2b	3b	4a	5c	6a	7a	8c	9c	10b	11c	12b	13a	14c	15b	16a	17c	18c	19c	20a	1	1	1	0	0	0	1	0	0	0	1	0	1	1	0	1	0	1	0	1	10		759806590	6ad2202d-ebc6-4a78-a7bb-8870e9129025	2026-03-24			submitted_via_web		vsXvzCWkMyVfniXAJUu9xq		uuid:6ad2202d-ebc6-4a78-a7bb-8870e9129025	91
+2026-03-24	2026-03-24		2026-03-24	ແຜນການການເງິນ	Salavan	Salavanh	ຈ໋ອນ ຮິ່ງວິໄລວົງ	Female	Salavan	Laongam	Midwives		District hospital	ໂຮງຫມໍເມືອເລົ່າງາມ	Pre-test		1b	2a	3c	4b	5a	6a	7a	8c	9b	10c	11a	12c	13c	14c	15b	16a	17c	18c	19c	20a	0	0	0	1	0	0	1	0	1	1	0	1	0	1	0	1	0	1	0	1	9		759806690	ac14388c-824e-4856-ba87-763580c309d1	2026-03-24			submitted_via_web		vsXvzCWkMyVfniXAJUu9xq		uuid:ac14388c-824e-4856-ba87-763580c309d1	92
+2026-03-24	2026-03-24		2026-03-24	ຫ້ອງການແຜນການເງີນແຂວງ	Salavan	Salavanh	ນາງໄກ່ສອນດຸ່ນວົງເລືອນ	Female	Salavan	Salavanh	Primary health care		District Health Office	ຫ້ອງປະຊຸມຫ້ອງການແຜນການເງີນແຂວງ	Pre-test		1a	2b	3b	4a	5c	6b	7a	8c	9b	10c	11c	12a	13c	14a	15b	16a	17c	18c	19b	20a	1	1	1	0	0	1	1	0	1	1	1	0	0	0	0	1	0	1	1	1	12		759806704	3aedb506-d833-46e4-905b-c3f22b57625b	2026-03-24			submitted_via_web		vsXvzCWkMyVfniXAJUu9xq		uuid:3aedb506-d833-46e4-905b-c3f22b57625b	93
+2026-03-24	2026-03-24		2026-03-24	ຫ້ອງການແຜນການການເງີນ	Salavan	Salavanh	ນ.ຂັນທອງ ຈອມມະນີດາວົງ	Female	Salavan	Laongam	Nurses		District hospital	ໂຮງໜໍເມືອງເລົ່າງາມ	Pre-test		1b	2a	3b	4b	5a	6a	7a	8c	9b	10a	11c	12c	13c	14c	15b	16a	17a	18c	19c	20a	0	0	1	1	0	0	1	0	1	0	1	1	0	1	0	1	1	1	0	1	11		759806742	0b009c1e-9909-499f-a1fc-25cb6e176554	2026-03-24			submitted_via_web		vsXvzCWkMyVfniXAJUu9xq		uuid:0b009c1e-9909-499f-a1fc-25cb6e176554	94
+2026-03-24	2026-03-24		2026-03-24	ຫ້ອງປະຊຸມຫ້ອງການການເງີນແຂວງສາລະວັນ	Salavan	Salavanh	ນາງ ຈັນສີ ນິນທະຂັນ	Female	Salavan	Toumlane	Doctors		District hospital	ໂຮງຫມໍເມືອວຕຸ້ມລານ	Pre-test		1a	2b	3b	4b	5c	6b	7b	8c	9c	10c	11c	12b	13a	14c	15b	16a	17a	18a	19b	20a	1	1	1	1	0	1	0	0	0	1	1	0	1	1	0	1	1	0	1	1	13		759806743	bec7ec91-40bb-47f4-950c-0c5f6ec4ad8a	2026-03-24			submitted_via_web		vsXvzCWkMyVfniXAJUu9xq		uuid:bec7ec91-40bb-47f4-950c-0c5f6ec4ad8a	95
+2026-03-24	2026-03-25		2026-03-24	ຫ້ອງການປະກັນສັງຄົມແຂວງ	Oudomxay	Xay	ນາງ ລຳເພີນ ນາລີແກ້ວ	Female	Oudomxay	Houn	Doctors		District hospital	ໂຮງໝໍເມືອງຮຸນ	Pre-test		1a	2c	3b	4a	5a	6a	7a	8c	9c	10a	11c	12c	13a	14a	15b	16b	17b	18a	19a	20a	1	0	1	0	0	0	1	0	0	0	1	1	1	0	0	0	0	0	0	1	7		759806774	fcb223fc-47db-4b4f-b805-61e2661c87b3	2026-03-24			submitted_via_web		vsXvzCWkMyVfniXAJUu9xq		uuid:91265226-6420-4459-a4e3-8c9ec935f596	96
+2026-03-24	2026-03-24		2026-03-24	ຫ້ອງການການເງິນ	Salavan	Salavanh	ນ ລັດຕະນະພອນ ວົງຫາເທບ	Female	Salavan	Lakhonepheng	Doctors		District Health Office	ຫ້ອງການສາທາເມຶອງລະຄອນເພັງ	Pre-test		1a	2b	3b	4b	5a	6b	7b	8a	9c	10c	11c	12c	13a	14c	15c	16a	17a	18a	19c	20a	1	1	1	1	0	1	0	1	0	1	1	1	1	1	1	1	1	0	0	1	15		759806779	27b7c8b3-e40e-4bf2-926a-d018a4af1eb6	2026-03-24			submitted_via_web		vsXvzCWkMyVfniXAJUu9xq		uuid:27b7c8b3-e40e-4bf2-926a-d018a4af1eb6	97
+2026-03-24	2026-03-24		2026-03-24	ຫ້ອງປະຊຸມຫ້ອງການການເງິນ	Salavan	Laongam	ດິດສເຕີເປີຍກັນຍາ	Male	Salavan	Laongam	Doctors		District hospital	ຫ້ອງການສາທາ	Pre-test		1a	2b	3a	4a	5a	6b	7a	8a	9c	10a	11b	12c	13a	14c	15b	16a	17c	18a	19a	20b	1	1	0	0	0	1	1	1	0	0	0	1	1	1	0	1	0	0	0	0	9		759806805	f3baf3a6-fdb1-46a7-8275-23fe431d6f1c	2026-03-24			submitted_via_web		vsXvzCWkMyVfniXAJUu9xq		uuid:f3baf3a6-fdb1-46a7-8275-23fe431d6f1c	98
+2026-03-24	2026-03-24		2026-03-24	ຫ້ອງປະຊຸມການເງີນແຂວງ	Salavan	Khongxedon	ທ. ສຸລິຍັນ ດ້ວງດວງສີ	Male	Salavan	Khongxedon	Nurses		District Health Office	ຫ້ອງການສາທາລະນະສຸກເມືອງຄົງເຊໂດນ	Pre-test		1a	2b	3a	4b	5a	6b	7a	8c	9c	10c	11b	12b	13a	14c	15b	16a	17a	18c	19a	20a	1	1	0	1	0	1	1	0	0	1	0	0	1	1	0	1	1	1	0	1	12		759806846	0e9db5b7-c1b6-4fb8-b6f6-66ec40566c7b	2026-03-24			submitted_via_web		vsXvzCWkMyVfniXAJUu9xq		uuid:0e9db5b7-c1b6-4fb8-b6f6-66ec40566c7b	99
+2026-03-24	2026-03-25		2026-03-24	ຫ້ອງການປະກັນສັງຄົມແຂວງ	Oudomxay	Xay	ນາງ ໄພສອນ ທະວີສັກ	Female	Oudomxay	Houn	Primary health care		District hospital	ຫ້ອງການປະກັນສັງຄົມ	Pre-test		1a	2a	3b	4b	5a	6b	7a	8c	9c	10c	11b	12b	13a	14c	15b	16a	17c	18c	19c	20a	1	0	1	1	0	1	1	0	0	1	0	0	1	1	0	1	0	1	0	1	11		759806856	2b9044f9-0090-4106-a931-b278a7375f05	2026-03-24			submitted_via_web		vsXvzCWkMyVfniXAJUu9xq		uuid:7cd6565a-dbcf-4be3-89ec-da0273c1bf6b	100
+2026-03-24	2026-03-24		2026-03-24	ຫ້ອງປະຊຸມການເງີນ	Salavan	Salavanh	ທ້າວສົມໄຊ ອຸ່ນເຮືອນ	Male	Salavan	Khongxedon	Doctors		District hospital	ໂຮງໝໍເມືອງຄົງເຊໂດນ	Pre-test		1b	2c	3b	4b	5a	6b	7a	8b	9c	10c	11c	12b	13a	14b	15b	16a	17c	18c	19a	20b	0	0	1	1	0	1	1	0	0	1	1	0	1	0	0	1	0	1	0	0	9		759806880	079e97a3-eae9-450a-83ab-8d152fcf7a56	2026-03-24			submitted_via_web		vsXvzCWkMyVfniXAJUu9xq		uuid:079e97a3-eae9-450a-83ab-8d152fcf7a56	101
+2026-03-24	2026-03-24		2026-03-24	ຫ້ອງປະຊຸມພະແນກການເງິນ	Salavan	Toumlane	ນາງນົກວີໄລແສງສາຍ	Female	Salavan	Toumlane	Doctors		District hospital	ໂຮງໝໍເມືອງ	Pre-test		1a	2b	3b	4a	5b	6b	7a	8c	9c	10c	11c	12b	13a	14c	15b	16a	17a	18a	19b	20a	1	1	1	0	1	1	1	0	0	1	1	0	1	1	0	1	1	0	1	1	14		759806890	ebcbe801-3047-4cb1-8f7a-1a7c63bcf58e	2026-03-24			submitted_via_web		vsXvzCWkMyVfniXAJUu9xq		uuid:ebcbe801-3047-4cb1-8f7a-1a7c63bcf58e	102
+2026-03-24	2026-03-24		2026-03-24	ຫ້ອງການການເງີນ	Salavan	Salavanh	ນາງ ພູທອນ ສີທັດຄັດສາ	Female	Salavan	Lakhonepheng	Nurses		District hospital	ໂຮງໝໍເມືອງ	Pre-test		1a	2b	3b	4a	5b	6b	7a	8c	9c	10c	11a	12c	13a	14a	15b	16a	17a	18c	19b	20a	1	1	1	0	1	1	1	0	0	1	0	1	1	0	0	1	1	1	1	1	14		759806938	346c0b8c-d28e-404d-ab0c-330980f2cd7a	2026-03-24			submitted_via_web		vsXvzCWkMyVfniXAJUu9xq		uuid:346c0b8c-d28e-404d-ab0c-330980f2cd7a	103
+2026-03-24	2026-03-24		2026-03-24	ຫ້ອງປະຊຸມພະແນກການເງີນ	Salavan	Lakhonepheng	ນ ກັນນິກາ  ທອງໂສພາ	Female	Salavan	Lakhonepheng	Doctors		District hospital	ໂຮງຫມໍເມືອງ	Pre-test		1a	2b	3b	4b	5b	6b	7a	8c	9c	10c	11c	12b	13a	14c	15b	16a	17c	18b	19b	20a	1	1	1	1	1	1	1	0	0	1	1	0	0	1	0	1	0	0	1	1	13		759806976	f3cd37b6-3a22-4c54-942f-c403a3c9fdd2	2026-03-24			submitted_via_web		vmChQJvBeMcaxQdpBRGUjK		uuid:f3cd37b6-3a22-4c54-942f-c403a3c9fdd2	104
+2026-03-24	2026-03-24		2026-03-24	ຫ້ອງການເງິນ	Salavan	Khongxedon	ນາງມະນີວັນຫຼ້າຫຼ່ຽມທະວີໄຊ	Female	Salavan	Khongxedon	Midwives		District hospital	ໂຮງໝໍ່ເມືອງຄົງເຊໂດນ	Pre-test		1b	2a	3c	4b	5b	6a	7a	8c	9c	10c	11c	12c	13a	14b	15b	16a	17c	18a	19a	20b	0	0	0	1	1	0	1	0	0	1	1	1	1	0	0	1	0	0	0	0	8		759807052	d3066257-1c84-4223-8e2d-a74da44ae610	2026-03-24			submitted_via_web		vsXvzCWkMyVfniXAJUu9xq		uuid:d3066257-1c84-4223-8e2d-a74da44ae610	105
+2026-03-24	2026-03-24		2026-03-24	ຫ້ອງການພະແນກການເງີນ	Salavan	Khongxedon	ນາງ ມະໄລທອງ ພົມອາມາດ	Female	Salavan	Khongxedon	Doctors		District hospital	ໂຮງໝໍເມືອງຄົງເຊໂດນ	Pre-test		1a	2b	3a	4b	5a	6a	7a	8c	9c	10c	11c	12a	13a	14c	15b	16a	17a	18c	19b	20a	1	1	0	1	0	0	1	0	0	1	1	0	1	1	0	1	1	1	1	1	13		759807070	1ab13de7-0bed-4cbb-ac53-324b520e816c	2026-03-24			submitted_via_web		vsXvzCWkMyVfniXAJUu9xq		uuid:1ab13de7-0bed-4cbb-ac53-324b520e816c	106
+2026-03-24	2026-03-24		2026-03-24	ຫ້ອງປະຊຸມພະແນກ ສາທາລະນະສຸກແຂວງ ເຊກອງ	Sekong	Lamam	ໄໝຄຳ ປອດສຸລິຍາ	Female	Sekong	Kaleum	Nurses		District Health Office	ຫ້ອງການສາທາເມືອງກະລຶມ	Pre-test		1a	2a	3a	4b	5a	6a	7a	8b	9a	10c	11a	12c	13a	14c	15c	16c	17b	18a	19b	20a	1	0	0	1	0	0	1	0	0	1	0	1	1	1	1	0	0	0	1	1	10		759807150	bf83e729-cddc-444b-af43-57c1100267b3	2026-03-24			submitted_via_web		vsXvzCWkMyVfniXAJUu9xq		uuid:2870ebfb-3550-49c8-9fc5-019736bd4f5e	107
+2026-03-24	2026-03-24		2026-03-24	ຫ້ອງປະຊຸມພະແນກ ສາທາລະນະສຸກແຂວງ ເຊກອງ	Sekong	Lamam	ຈັນທະຈອນ ສີສຸລາດ	Female	Sekong	Thateng	Doctors		District hospital	ໂຮງໝໍເມືອງທ່າແຕງ	Pre-test		1a	2b	3a	4a	5a	6a	7a	8c	9c	10b	11c	12b	13a	14b	15b	16a	17b	18a	19b	20a	1	1	0	0	0	0	1	0	0	0	1	0	1	0	0	1	0	0	1	1	8		759807271	d3fa8b43-ab6e-4bd1-856c-a92bbfcc2823	2026-03-24			submitted_via_web		vsXvzCWkMyVfniXAJUu9xq		uuid:f07f34f3-202c-451e-8ffd-955db3c74dab	108
+2026-03-24	2026-03-25		2026-03-24	ຫ້ອງການປະກັນສັງຄົມແຂວງ	Oudomxay	Xay	ແສງສະຫັວນອິນຕະວົງ	Female	Oudomxay	Beng	Nurses		District hospital	ຫ້ອງການປະກັນສັງຄົມ	Pre-test		1a	2b	3a	4a	5a	6b	7a	8c	9b	10a	11b	12a	13a	14c	15b	16c	17c	18c	19c	20a	1	1	0	0	0	1	1	0	1	0	0	0	1	1	0	0	0	1	0	1	9		759807325	2e45c4ae-cb2f-4e2c-bc97-a43c199806c3	2026-03-24			submitted_via_web		vsXvzCWkMyVfniXAJUu9xq		uuid:7ea121eb-5733-4fab-bece-aa307a79d5e1	109
+2026-03-24	2026-03-24		2026-03-24	ຫ້ອງປະຊຸມພະແນກ ສາທາລະນະສຸກແຂວງ ເຊກອງ	Sekong	Lamam	ຈັນດີ ຜາສຸກ	Female	Sekong	Dakcheung	Midwives		District hospital	ໂຮງຫມໍເມືອງ ດາກຈືງ	Pre-test		1a	2b	3b	4a	5a	6a	7a	8a	9a	10c	11b	12c	13a	14b	15b	16a	17a	18c	19a	20a	1	1	1	0	0	0	1	1	0	1	0	1	1	0	0	1	1	1	0	1	12		759807416	ed5cd0cc-f2a7-4f05-997f-44929edb4b41	2026-03-24			submitted_via_web		vsXvzCWkMyVfniXAJUu9xq		uuid:7e1b630d-4017-41dc-81a4-2b0ac59bb2eb	110
+2026-03-24	2026-03-24		2026-03-24	ຫ້ອງປະຊຸມພະແນກ ສາທາລະນະສຸກແຂວງ ເຊກອງ	Sekong	Dakcheung	ແສງນາພອນ ວິພົນຄຳເຍືອງ	Male	Sekong	Dakcheung	Other	ສະຖິຕິ	District Health Office	ສາທາລະນະສຸກດາກຈືງ	Pre-test		1a	2a	3b	4c	5b	6a	7a	8c	9b	10b	11c	12c	13c	14c	15b	16a	17a	18b	19c	20c	1	0	1	0	1	0	1	0	1	0	1	1	0	1	0	1	1	0	0	0	10		759807531	a63c2e26-dbfe-457f-a350-bd77e8a1b00a	2026-03-24			submitted_via_web		vsXvzCWkMyVfniXAJUu9xq		uuid:fbc36b54-0784-4960-bd0a-4317b213a520	111
+2026-03-24	2026-03-24		2026-03-24	ຫ້ອງປະຊຸມພະແນກ ສາທາລະນະສຸກແຂວງ ເຊກອງ	Sekong	Lamam	ຈັນຖະຫນອມ ປັນຍາຈັກ	Female	Sekong	Dakcheung	Midwives		District hospital	ໂຮງຫມໍເມືອງດາກຈື່ງ	Pre-test		1a	2b	3b	4b	5b	6b	7a	8a	9c	10c	11c	12c	13a	14c	15a	16a	17a	18b	19b	20c	1	1	1	1	1	1	1	1	0	1	1	1	1	1	0	1	1	0	1	0	16		759807560	3582faf7-6e16-4386-8a78-4c9864a09e4f	2026-03-24			submitted_via_web		vsXvzCWkMyVfniXAJUu9xq		uuid:164a86f4-73bd-4102-9013-cc1ec18cefdf	112
+2026-03-24	2026-03-24		2026-03-24	ຫ້ອງປະຊຸມພະແນກ ສາທາລະນະສຸກແຂວງ ເຊກອງ	Sekong	Thateng	ສີສຸວົງ ໄຊຍະວົງ	Male	Sekong	Thateng	Doctors		District hospital	ໂຮງຫມໍເມືອງທ່າແຕງ	Pre-test		1a	2b	3a	4a	5c	6b	7a	8b	9b	10c	11c	12b	13a	14c	15b	16a	17c	18a	19a	20a	1	1	0	0	0	1	1	0	1	1	1	0	1	1	0	1	0	0	0	1	11		759807562	3ae8d759-c564-4aee-99e7-7c75e43fb850	2026-03-24			submitted_via_web		vsXvzCWkMyVfniXAJUu9xq		uuid:ee4ce323-37a1-4a54-8438-f40024c5c6e3	113
+2026-03-24	2026-03-24		2026-03-24	ຫ້ອງປະຊຸມພະແນກ ສາທາລະນະສຸກແຂວງ ເຊກອງ	Sekong	Lamam	ວຽງສະໄໝ ເລຫວຽດມ່ວງ	Female	Sekong	Dakcheung	Midwives		District hospital	ໂຮງຫມໍເມືອງດາກຈືງ	Pre-test		1a	2b	3a	4b	5c	6a	7a	8c	9c	10c	11c	12c	13a	14c	15a	16a	17c	18a	19b	20a	1	1	0	1	0	0	1	0	0	1	1	1	1	1	0	1	0	0	1	1	12		759807563	b88d6930-6f41-479d-b181-2eed0f393d36	2026-03-24			submitted_via_web		vsXvzCWkMyVfniXAJUu9xq		uuid:b621dbbe-1f39-467c-ba0d-3afb31fa0e18	114
+2026-03-24	2026-03-24		2026-03-24	ຫ້ອງປະຊຸມການເງິນ	Salavan	Salavanh	ນາງ ຄານທອງ ຈິດປັນນາ	Female	Salavan	Khongxedon	Nurses		District hospital	ໂຮງໝໍເມືອງຄົງເຊໂດນ	Pre-test		1c	2a	3c	4a	5a	6b	7a	8c	9c	10c	11a	12b	13a	14c	15b	16b	17b	18a	19b	20a	0	0	0	0	0	1	1	0	0	1	0	0	1	1	0	0	0	0	1	1	7		759807607	be2daa38-f1a8-4409-9c61-c50d66f4ab01	2026-03-24			submitted_via_web		vsXvzCWkMyVfniXAJUu9xq		uuid:be2daa38-f1a8-4409-9c61-c50d66f4ab01	115
+2026-03-24	2026-03-24		2026-03-24	ຫ້ອງປະຊຸມພະແນກ ສາທາລະນະສຸກແຂວງ ເຊກອງ	Sekong	Lamam	ບົວສອນ ແກ້ວມະນີ	Female	Sekong	Lamam	Nurses		District Health Office	ຫ້ອງການສາທາເມືອງລະມາມ	Pre-test		1a	2b	3b	4b	5b	6a	7a	8c	9b	10c	11c	12a	13a	14c	15c	16a	17a	18b	19a	20a	1	1	1	1	1	0	1	0	1	1	1	0	1	1	1	1	1	0	0	1	15		759807641	70080df3-2257-4eab-a0cb-722b8227157d	2026-03-24			submitted_via_web		vsXvzCWkMyVfniXAJUu9xq		uuid:ce8ac005-4c05-4470-a995-20edbef1f823	116
+2026-03-24	2026-03-24		2026-03-24	ຫ້ອງປະຊຸມພະແນກ ສາທາລະນະສຸກແຂວງ ເຊກອງ	Sekong	Lamam	ລຳທຽນ ແກ້ວອາພັບ	Female	Sekong	Kaleum	Other	ສົ່ງເສີມສຸຂະພາບ	District Health Office	ສາທາລະນະສຸກເມືອງກະລຶມ	Pre-test		1a	2a	3b	4b	5b	6b	7a	8c	9c	10c	11c	12c	13a	14c	15b	16a	17a	18a	19a	20a	1	0	1	1	1	1	1	0	0	1	1	1	1	1	0	1	1	0	0	1	14		759807677	1fe6c336-a7e0-4a3a-859e-55133d5c5ed8	2026-03-24			submitted_via_web		vsXvzCWkMyVfniXAJUu9xq		uuid:36e9ce6a-e914-424e-88fd-effd5f5aa2f5	117
+2026-03-24	2026-03-24		2026-03-24	ຫ້ອງປະຊຸມພະແນກ ສາທາລະນະສຸກແຂວງ ເຊກອງ	Sekong	Lamam	ນໍ້າເພັດ ສຸຂານຸວົງ	Female	Sekong	Lamam	Primary health care		District Health Office	ສາທາລະນະສຸກເມືອງລະມາມ	Pre-test		1a	2b	3b	4b	5b	6a	7a	8c	9b	10c	11b	12a	13a	14c	15c	16a	17a	18c	19a	20a	1	1	1	1	1	0	1	0	1	1	0	0	1	1	1	1	1	1	0	1	15		759807705	1d21941c-1017-4113-be43-a29fde486c9b	2026-03-24			submitted_via_web		vsXvzCWkMyVfniXAJUu9xq		uuid:4c33004e-a0f0-489b-a020-eeb648c3258e	118
+2026-03-24	2026-03-24		2026-03-24	ຫ້ອງປະຊຸມພະແນກ ສາທາລະນະສຸກແຂວງ ເຊກອງ	Sekong	Lamam	ເກດເກສີ ໄຊສົງຄາມ	Female	Sekong	Thateng	Doctors		District Health Office	ສາທາເມືອງທ່າແຕງ	Pre-test		1a	2b	3b	4a	5a	6a	7a	8c	9c	10c	11b	12a	13a	14c	15b	16a	17a	18a	19a	20a	1	1	1	0	0	0	1	0	0	1	0	0	1	1	0	1	1	0	0	1	10		759807757	016d3479-2aa9-4115-a23a-97e1861ce364	2026-03-24			submitted_via_web		vsXvzCWkMyVfniXAJUu9xq		uuid:cb1b0ca1-6914-4a58-a92c-a1ff0f737901	119
+2026-03-24	2026-03-24		2026-03-24	ຫ້ອງປະຊຸມພະແນກ ສາທາລະນະສຸກແຂວງ ເຊກອງ	Sekong	Thateng	ອົ້ນ ໄຊຍະສອນ	Female	Sekong	Thateng	Midwives		District Health Office	ແມ່ແລະເດັກເມືອງທ່າແຕງ	Pre-test		1a	2b	3b	4b	5a	6a	7a	8c	9c	10c	11a	12b	13a	14a	15c	16a	17a	18c	19a	20a	1	1	1	1	0	0	1	0	0	1	0	0	1	0	1	1	1	1	0	1	12		759807772	0500671d-906c-4998-b697-024c77b2a943	2026-03-24			submitted_via_web		vsXvzCWkMyVfniXAJUu9xq		uuid:42719256-ddc5-4fec-9c7f-1446ba535b10	120
+2026-03-24	2026-03-24		2026-03-24	ຫ້ອງປະຊຸມພະແນກສາທາແຂວງເຊກອງ	Sekong	Lamam	ອາສະຫວັນ ສູ່ລິຍິ	Female	Sekong	Dakcheung	Doctors		District hospital	ໂຮງຫມໍເມືອງດາກຈຶງ	Pre-test		1a	2a	3b	4b	5c	6b	7a	8c	9c	10c	11c	12c	13a	14c	15b	16a	17c	18b	19b	20a	1	0	1	1	0	1	1	0	0	1	1	1	1	1	0	1	0	0	1	1	13		759807777	68c21a73-34e2-4822-aa7b-bf6ca393fd28	2026-03-24			submitted_via_web		vsXvzCWkMyVfniXAJUu9xq		uuid:68c21a73-34e2-4822-aa7b-bf6ca393fd28	121
+2026-03-24	2026-03-24		2026-03-24	ຫ້ອງປະຊຸມພະແນກ ສາທາລະນະສຸກແຂວງ ເຊກອງ	Sekong	Kaleum	ແກ້ວມະນີ ພົມມະຈັນ	Female	Sekong	Kaleum	Doctors		District hospital	ໂຮງໝໍເມືອງກະລືມ	Pre-test		1b	2b	3b	4c	5c	6b	7a	8c	9b	10a	11a	12c	13a	14b	15a	16b	17a	18b	19b	20a	0	1	1	0	0	1	1	0	1	0	0	1	1	0	0	0	1	0	1	1	10		759807817	0d0fc608-4d47-414d-a9ce-ac94885f22a0	2026-03-24			submitted_via_web		vsXvzCWkMyVfniXAJUu9xq		uuid:2bc26f40-0519-426d-b907-38ae959a313a	122
+2026-03-24	2026-03-24		2026-03-24	ຫ້ອງປະຊຸມພະແນກ ສາທາລະນະສຸກແຂວງ ເຊກອງ	Sekong	Lamam	ສຸພານັນ ຈັນທະວີຈິດ	Female	Sekong	Thateng	Primary health care		District hospital	ໂຮງໜໍເມືອງທ່າແຕງ	Pre-test		1a	2b	3a	4a	5c	6a	7a	8c	9c	10b	11c	12a	13a	14c	15c	16a	17b	18a	19a	20c	1	1	0	0	0	0	1	0	0	0	1	0	1	1	1	1	0	0	0	0	8		759807841	49f48895-9f4f-445b-b3cc-86f300f46e03	2026-03-24			submitted_via_web		vsXvzCWkMyVfniXAJUu9xq		uuid:06d8b06e-2295-47d4-88ee-853f4ed05a42	123
+2026-03-24	2026-03-24		2026-03-24	ຫ້ອງປະຊຸມພະແນກ ສາທາລະນະສຸກແຂວງ ເຊກອງ	Sekong	Kaleum	ຈັນທະລາ  ເພັດໂສພາ	Female	Sekong	Kaleum	Doctors		District hospital	ໂຮງຫມໍເມືອງກະລຶມ	Pre-test		1a	2a	3a	4b	5c	6b	7a	8a	9a	10b	11c	12c	13a	14b	15b	16b	17b	18b	19c	20a	1	0	0	1	0	1	1	1	0	0	1	1	1	0	0	0	0	0	0	1	9		759807900	27adef35-c340-43cc-92b2-2b52c65e4d8f	2026-03-24			submitted_via_web		vsXvzCWkMyVfniXAJUu9xq		uuid:58dae059-dc2d-4d1c-97d4-79c860709490	124
+2026-03-24	2026-03-24		2026-03-24	ຫ້ອງປະຊຸມພະແນກ ສາທາລະນະສຸກແຂວງ ເຊກອງ	Sekong	Lamam	ຕີວຄຳ ຈິດຕະລາດ	Female	Sekong	Kaleum	Midwives		District Health Office	ສາທາເມືອງກະລຶມ	Pre-test		1a	2a	3c	4b	5a	6b	7a	8c	9c	10a	11c	12b	13a	14a	15a	16a	17a	18b	19b	20a	1	0	0	1	0	1	1	0	0	0	1	0	1	0	0	1	1	0	1	1	10		759808400	6a02c625-2a9a-412f-8085-8f4a452bdd37	2026-03-24			submitted_via_web		vsXvzCWkMyVfniXAJUu9xq		uuid:a50970d7-856f-419b-9da0-4b1f5cb11a13	125
+2026-03-24	2026-03-26		2026-03-24	ຫ້ອງປະຊຸມພະແນກ ສາທາລະນະສຸກແຂວງ ເຊກອງ	Sekong	Dakcheung	ທອງຄຳ ແກ້ວມະນີໄລ	Male	Sekong	Dakcheung	Doctors		District hospital	ໂຮງໝໍເມືອງ	Pre-test		1a	2b	3c	4a	5a	6a	7a	8a	9c	10c	11a	12c	13a	14a	15b	16a	17a	18a	19c	20a	1	1	0	0	0	0	1	1	0	1	0	1	1	0	0	1	1	0	0	1	10		759808493	466f567d-f6cc-4a69-ba43-cbd002a88d25	2026-03-24			submitted_via_web		vsXvzCWkMyVfniXAJUu9xq		uuid:92bc74e0-8d0e-498d-b84c-6b0cdfdbba7e	126
+2026-03-24	2026-03-24		2026-03-24	ຫ້ອງປະຊຸມພະແນກ ສາທາລະນະສຸກແຂວງ ເຊກອງ	Sekong	Kaleum	ແກ້ວຈັນ ວັນນະວົງ	Female	Sekong	Kaleum	Nurses		District hospital	ໂຮງຫມໍເມືອງກະລຶມ	Pre-test		1a	2a	3c	4c	5c	6b	7a	8b	9b	10c	11c	12a	13a	14c	15c	16a	17b	18c	19a	20b	1	0	0	0	0	1	1	0	1	1	1	0	1	1	1	1	0	1	0	0	11		759808655	ca09f8c3-c527-4b9a-87fa-b7342854a2b3	2026-03-24			submitted_via_web		vsXvzCWkMyVfniXAJUu9xq		uuid:0a522246-51b5-4d68-8dbf-793308d9d53f	127
+2026-03-24	2026-03-24		2026-03-24	ຫ້ອງປະຊຸມການຢາໂຮງຫມໍແຂວງ	Savannakhet	Phalanxay	ນ.ວັນລະດາ ແສງແກ້ວມະຫາວົງ	Female	Savannakhet	Phalanxay	Doctors		District Health Office	ຫ້ອງການສາທາພະລານໄຊ	Pre-test		1a	2a	3b	4b	5c	6b	7a	8c	9b	10c	11c	12c	13a	14b	15c	16a	17a	18b	19c	20a	1	0	1	1	0	1	1	0	1	1	1	1	1	0	1	1	1	0	0	1	14		759808722	d7a7ab28-273e-4398-8736-52c7670e3a0e	2026-03-24			submitted_via_web		vsXvzCWkMyVfniXAJUu9xq		uuid:d7a7ab28-273e-4398-8736-52c7670e3a0e	128
+2026-03-24	2026-03-24		2026-03-24	ໂຮງຫມໍແຂວງສະຫວັນນະເຂດ	Savannakhet	Kaysone Phomvihane	ນາງມະລີພອນ ທອງສຸວັນ	Female	Savannakhet	Xaybouly	Doctors		District hospital	ໂຮງຫມໍເມືອງໄຊບູລີ	Pre-test		1b	2b	3b	4b	5c	6b	7a	8c	9c	10c	11c	12c	13a	14c	15b	16a	17a	18c	19c	20a	0	1	1	1	0	1	1	0	0	1	1	1	1	1	0	1	1	1	0	1	14		759808801	3895ef5d-8304-4efa-9e33-a6296e5b1417	2026-03-24			submitted_via_web		vsXvzCWkMyVfniXAJUu9xq		uuid:3895ef5d-8304-4efa-9e33-a6296e5b1417	129
+2026-03-24	2026-03-24		2026-03-24	ໂຮງໜໍແຂວງສະຫັວນນະເຂດ	Savannakhet	Phalanxay	ນ.ສຸດສະດາ ຈັນທະລາ	Female	Savannakhet	Phalanxay	Midwives		District hospital	ໂມງໜໍເມືອງພະລານໄຊ	Pre-test		1a	2b	3a	4a	5a	6a	7b	8c	9c	10c	11c	12c	13a	14c	15b	16a	17b	18c	19a	20a	1	1	0	0	0	0	0	0	0	1	1	1	1	1	0	1	0	1	0	1	10		759808806	438f8f76-dad8-408a-9780-013514b06b24	2026-03-24			submitted_via_web		vsXvzCWkMyVfniXAJUu9xq		uuid:438f8f76-dad8-408a-9780-013514b06b24	130
+2026-03-24	2026-03-24		2026-03-24	ຫ້ອງປະຊຸມໂຮງໝໍແຂວງ	Savannakhet	Atsaphone	ມີລິນດາ ໂດນສຸລິດ	Male	Savannakhet	Atsaphone	Doctors		District hospital	ໂຮງໝໍເມືອງອາດສະພອນ	Pre-test		1b	2b	3a	4b	5a	6a	7a	8a	9c	10c	11b	12b	13a	14a	15b	16a	17a	18a	19b	20c	0	1	0	1	0	0	1	1	0	1	0	0	1	0	0	1	1	0	1	0	9		759808864	5aeea3e4-c95e-45cc-b8b0-a02fc7ff32bf	2026-03-24			submitted_via_web		vsXvzCWkMyVfniXAJUu9xq		uuid:5aeea3e4-c95e-45cc-b8b0-a02fc7ff32bf	131
+2026-03-24	2026-03-24		2026-03-24	ໂຮງຫມໍແຂວງສະຫວັນນະເຂດ	Savannakhet	Kaysone Phomvihane	ສົມດອງ ສາຍໄຊຍະຈັນ	Male	Savannakhet	Phalanxay	Doctors		District hospital	ຫ້ອງການສາທາເມືອງພະລານໄຊ	Pre-test		1a	2b	3a	4a	5a	6a	7a	8b	9a	10a	11c	12c	13a	14c	15b	16a	17c	18a	19a	20a	1	1	0	0	0	0	1	0	0	0	1	1	1	1	0	1	0	0	0	1	9		759808894	9162f70a-f692-4520-8e06-52e0cbea2e86	2026-03-24			submitted_via_web		vsXvzCWkMyVfniXAJUu9xq		uuid:9162f70a-f692-4520-8e06-52e0cbea2e86	132
+2026-03-24	2026-03-24		2026-03-24	ໂຮງຫມໍແຂວງສຫວັນະເຂດ	Savannakhet	Songkhone	ນ ທິດຕາວັນ ພັນສາລີທອງ	Female	Savannakhet	Songkhone	Doctors		District hospital	ໂຮງຫມໍເມືອງສອງຄອນ	Pre-test		1a	2a	3b	4a	5c	6a	7a	8c	9c	10c	11b	12c	13a	14c	15b	16a	17c	18c	19b	20a	1	0	1	0	0	0	1	0	0	1	0	1	1	1	0	1	0	1	1	1	11		759809081	4cf541ef-bb26-448a-b76b-e64da9986047	2026-03-24			submitted_via_web		vsXvzCWkMyVfniXAJUu9xq		uuid:4cf541ef-bb26-448a-b76b-e64da9986047	133
+2026-03-24	2026-03-24		2026-03-24	ສະຫັວນນະເຂດ	Savannakhet	Songkhone	ປຸ໋ຍ ໄຊເສດຖາ	Female	Savannakhet	Songkhone	Nurses		District hospital	ເມືອງສອງຄອນ	Pre-test		1a	2a	3b	4a	5c	6a	7a	8c	9b	10c	11b	12c	13a	14c	15b	16a	17c	18a	19a	20a	1	0	1	0	0	0	1	0	1	1	0	1	1	1	0	1	0	0	0	1	10		759809127	c14ecd07-15ad-4917-969b-e2a3b35debb9	2026-03-24			submitted_via_web		vsXvzCWkMyVfniXAJUu9xq		uuid:c14ecd07-15ad-4917-969b-e2a3b35debb9	134
+2026-03-24	2026-03-24		2026-03-24	ຫ້ອງປະຊຸມໂຮງຫມໍເເຂວງວະຫວັນ	Savannakhet	Kaysone Phomvihane	ນ.ພິລາວັນ ອີນສີຊຽງໃຫ່ມ	Female	Savannakhet	Champhone	Doctors		District hospital	ສາທາເມືອງຈຳພອນ	Pre-test		1a	2a	3a	4b	5c	6b	7a	8c	9c	10c	11c	12c	13a	14c	15b	16a	17b	18a	19c	20a	1	0	0	1	0	1	1	0	0	1	1	1	1	1	0	1	0	0	0	1	11		759809190	67f6b8b3-f37b-4c87-9ed3-cfcf1e7edf60	2026-03-24			submitted_via_web		vsXvzCWkMyVfniXAJUu9xq		uuid:67f6b8b3-f37b-4c87-9ed3-cfcf1e7edf60	135
+2026-03-24	2026-03-24		2026-03-24	ຫ້ອງປະຊຸມການຢາໂຮງໝໍແຂວງ	Savannakhet	Atsaphone	ນາງພອນທິບງາມວິໄລ	Female	Savannakhet	Atsaphone	Nurses		District Health Office	ສາທາເມືອງອາດສະພອນ	Pre-test		1a	2a	3b	4a	5a	6a	7a	8b	9c	10b	11a	12c	13a	14c	15b	16c	17a	18c	19a	20a	1	0	1	0	0	0	1	0	0	0	0	1	1	1	0	0	1	1	0	1	9		759809197	ffa60b8b-6a95-4924-bfd6-9c1b960ffac8	2026-03-24			submitted_via_web		vsXvzCWkMyVfniXAJUu9xq		uuid:ffa60b8b-6a95-4924-bfd6-9c1b960ffac8	136
+2026-03-24	2026-03-24		2026-03-24	ໂຮງໝໍແຂວງ ສະຫວັນນະເຂດ	Savannakhet	Kaysone Phomvihane	ກ໋ອດ ສຸວັນນະລາດ	Male	Savannakhet	Xaybouly	Doctors		District hospital	ໂຮງໝໍເມືອງ ໄຊບູລີ	Pre-test		1a	2b	3b	4c	5c	6b	7a	8c	9a	10b	11a	12b	13c	14c	15b	16a	17c	18c	19b	20c	1	1	1	0	0	1	1	0	0	0	0	0	0	1	0	1	0	1	1	0	9		759809219	f1986c02-055a-4b77-8b83-3b4370cf64d3	2026-03-24			submitted_via_web		vsXvzCWkMyVfniXAJUu9xq		uuid:f1986c02-055a-4b77-8b83-3b4370cf64d3	137
+2026-03-24	2026-03-24		2026-03-24	ໂຮງຫມໍແຂວງສະຫວັນນະເຂດ	Savannakhet	Xaybouly	ນ.ນົກ ພັນທະວົງສາ	Female	Savannakhet	Xaybouly	Midwives		District Health Office	ຫ້ອງການສາທາລະນະສຸກເມືອງໄຊບູລີ	Pre-test		1a	2b	3b	4a	5a	6b	7a	8c	9b	10a	11c	12b	13a	14c	15b	16a	17c	18a	19b	20a	1	1	1	0	0	1	1	0	1	0	1	0	1	1	0	1	0	0	1	1	12		759809225	a5d73117-b0cc-473a-b1fc-434747ce0380	2026-03-24			submitted_via_web		vsXvzCWkMyVfniXAJUu9xq		uuid:a5d73117-b0cc-473a-b1fc-434747ce0380	138
+2026-03-24	2026-03-24		2026-03-24	ຫ້ອງປະຊຸມໂຮງໝໍແຂວງ	Savannakhet	Kaysone Phomvihane	ນ.ພຸດທະວົງ ອິນສີຊຽງໃໝ່	Female	Savannakhet	Champhone	Midwives		District Health Office	ສາທາ ເມືອງຈຳພອນ	Pre-test		1a	2a	3c	4c	5c	6b	7a	8c	9b	10c	11a	12b	13a	14c	15a	16b	17c	18c	19b	20a	1	0	0	0	0	1	1	0	1	1	0	0	1	1	0	0	0	1	1	1	10		759809234	efc531f7-2da6-4053-be6a-833c8b255c0a	2026-03-24			submitted_via_web		vsXvzCWkMyVfniXAJUu9xq		uuid:efc531f7-2da6-4053-be6a-833c8b255c0a	139
+2026-03-24	2026-03-24		2026-03-24	ຫ້ອງປະຊຸມການຢາຊັ້ນສອງໂຮງໜໍແຂວງ	Savannakhet	Kaysone Phomvihane	ໜູຈັນພຸດທະສິມມາ	Female	Savannakhet	Atsaphone	Nurses		District Health Office	ຫ້ອງການສາທາອາດສະພອນ	Pre-test		1a	2b	3b	4b	5a	6b	7a	8c	9a	10b	11b	12c	13a	14b	15a	16a	17c	18c	19a	20a	1	1	1	1	0	1	1	0	0	0	0	1	1	0	0	1	0	1	0	1	11		759809242	9bd5f30b-0a04-4dc6-a6f6-57a8685bac92	2026-03-24			submitted_via_web		vsXvzCWkMyVfniXAJUu9xq		uuid:9bd5f30b-0a04-4dc6-a6f6-57a8685bac92	140
+2026-03-24	2026-03-24		2026-03-24	ໂຮງໝໍແຂວງ	Savannakhet	Phalanxay	ນ.ເສດຖີ​ ເຄື່ອນນະວົງສາ	Female	Savannakhet	Phalanxay	Nurses		District Health Office	ສາທາເມືອງພະລານໄຊ	Pre-test		1a	2a	3b	4b	5b	6a	7a	8a	9b	10c	11a	12b	13a	14c	15b	16a	17a	18a	19a	20a	1	0	1	1	1	0	1	1	1	1	0	0	1	1	0	1	1	0	0	1	13		759809345	b0963f16-3c91-4cf3-8d81-904b38bc2ae0	2026-03-24			submitted_via_web		vsXvzCWkMyVfniXAJUu9xq		uuid:b0963f16-3c91-4cf3-8d81-904b38bc2ae0	141
+2026-03-24	2026-03-24		2026-03-24	ໂຮງໝໍແຂວງ ຕຶກການຢາຊັ້ນ2	Savannakhet	Kaysone Phomvihane	ນາງພິດສະໄໝ ທອງສີອັກສອນ	Female	Savannakhet	Atsaphone	Nurses		District hospital	ໂຮງໝໍເມືອງ	Pre-test		1b	2b	3b	4a	5c	6a	7a	8c	9b	10c	11c	12b	13a	14c	15b	16a	17c	18a	19c	20a	0	1	1	0	0	0	1	0	1	1	1	0	1	1	0	1	0	0	0	1	10		759809346	4273e32e-df87-4240-b469-06e8e070d39e	2026-03-24			submitted_via_web		vsXvzCWkMyVfniXAJUu9xq		uuid:4273e32e-df87-4240-b469-06e8e070d39e	142
+2026-03-24	2026-03-24		2026-03-24	ຫ້ອງປະຊຸມໂຮງໜໍ່ແຂວງ	Savannakhet	Kaysone Phomvihane	ຄຳໃບ ແກ້ວມິນີວົງ	Female	Savannakhet	Champhone	Doctors		District hospital	ສາທາຈຳພອນ	Pre-test		1a	2a	3a	4a	5c	6b	7a	8b	9a	10c	11a	12a	13a	14a	15b	16a	17b	18a	19c	20c	1	0	0	0	0	1	1	0	0	1	0	0	1	0	0	1	0	0	0	0	6		759809352	3870fe89-5a3e-4a70-ba83-e8353e3842c3	2026-03-24			submitted_via_web		vsXvzCWkMyVfniXAJUu9xq		uuid:3870fe89-5a3e-4a70-ba83-e8353e3842c3	143
+2026-03-24	2026-03-24		2026-03-24	ໂຮງໝໍແຂວງ	Savannakhet	Kaysone Phomvihane	ພາບສອນວິໄລ ບຸນລໍາພັນ	Female	Savannakhet	Xaybouly	Nurses		District hospital	ໂຮງໝໍເມືອງ	Pre-test		1a	2a	3c	4a	5a	6b	7a	8a	9b	10a	11a	12b	13a	14c	15b	16a	17a	18a	19b	20a	1	0	0	0	0	1	1	1	1	0	0	0	1	1	0	1	1	0	1	1	11		759809354	918ed001-a77b-41c3-baee-bc3a692692f6	2026-03-24			submitted_via_web		vsXvzCWkMyVfniXAJUu9xq		uuid:918ed001-a77b-41c3-baee-bc3a692692f6	144
+2026-03-24	2026-03-24		2026-03-24	ໂຮງຫມໍແຂວງ	Savannakhet	Kaysone Phomvihane	ນ ເພັດດາວັນ ແມນວິໄລ	Female	Savannakhet	Songkhone	Midwives		District hospital	ໂຮງຫມໍເມືອງສອງຄອນ	Pre-test		1a	2a	3b	4a	5a	6b	7a	8c	9a	10a	11b	12b	13a	14c	15b	16a	17c	18c	19c	20a	1	0	1	0	0	1	1	0	0	0	0	0	1	1	0	1	0	1	0	1	9		759809358	b344fab1-32c8-49f5-a648-64c64cd8c1f9	2026-03-24			submitted_via_web		vsXvzCWkMyVfniXAJUu9xq		uuid:b344fab1-32c8-49f5-a648-64c64cd8c1f9	145
+2026-03-24	2026-03-24		2026-03-24	ໂຮງຫມໍແຂວງ	Savannakhet	Kaysone Phomvihane	ນາງ ດາວວີ ໄຊຍະລາດ	Female	Savannakhet	Xaybouly	Nurses		District hospital	ໂຮງຫມໍດມືອງ	Pre-test		1a	2a	3a	4a	5c	6b	7a	8c	9c	10b	11a	12b	13a	14c	15b	16b	17c	18c	19b	20a	1	0	0	0	0	1	1	0	0	0	0	0	1	1	0	0	0	1	1	1	8		759809360	be3bf0b6-9c4b-4e07-95c4-52d98b4a1bee	2026-03-24			submitted_via_web		vsXvzCWkMyVfniXAJUu9xq		uuid:be3bf0b6-9c4b-4e07-95c4-52d98b4a1bee	146
+2026-03-24	2026-03-24		2026-03-24	ໂຮງຫມໍແຂວງ	Savannakhet	Kaysone Phomvihane	ນາງສົມຫວັງ	Female	Savannakhet	Xaybouly	Midwives		District hospital	ໂຮງຫມໍເມືອງໄຊບູລີ	Pre-test		1a	2b	3a	4a	5a	6b	7a	8c	9c	10c	11a	12b	13a	14a	15a	16a	17b	18a	19a	20a	1	1	0	0	0	1	1	0	0	1	0	0	1	0	0	1	0	0	0	1	8		759809366	27585a2c-1adc-47e2-bc05-64bcceebf71f	2026-03-24			submitted_via_web		vsXvzCWkMyVfniXAJUu9xq		uuid:27585a2c-1adc-47e2-bc05-64bcceebf71f	147
+2026-03-24	2026-03-24		2026-03-24	ໂຮງໝໍແຂວງ	Savannakhet	Phalanxay	ພິມມາ	Female	Savannakhet	Phalanxay	Nurses		District hospital	JSI	Pre-test		1a	2a	3a	4a	5a	6b	7a	8c	9b	10c	11a	12b	13a	14c	15b	16a	17a	18a	19c	20a	1	0	0	0	0	1	1	0	1	1	0	0	1	1	0	1	1	0	0	1	10		759809393	9a78725f-1c08-4e65-958f-fc297b542256	2026-03-24			submitted_via_web		vsXvzCWkMyVfniXAJUu9xq		uuid:9a78725f-1c08-4e65-958f-fc297b542256	148
+2026-03-24	2026-03-24		2026-03-24	ໂຮງໜ໌ແຂວງ	Savannakhet	Champhone	ນາງສົມໃຈອີນວີຊຽງໃໝ໋	Female	Savannakhet	Champhone	Midwives		District Health Office	ຫອ້ງການສາທາເມືອງຈ໋າພອນ	Pre-test		1a	2b	3b	4b	5b	6a	7a	8c	9c	10b	11c	12b	13a	14c	15b	16a	17c	18a	19a	20c	1	1	1	1	1	0	1	0	0	0	1	0	1	1	0	1	0	0	0	0	10		759809396	972ed350-2b8c-4178-b770-374e9fbe0850	2026-03-24			submitted_via_web		vsXvzCWkMyVfniXAJUu9xq		uuid:972ed350-2b8c-4178-b770-374e9fbe0850	149
+2026-03-24	2026-03-24		2026-03-24	ໂຮງໝໍແຂວງ	Savannakhet	Phalanxay	ສົມຈິດ ໄຊຍະວົງ	Female	Savannakhet	Phalanxay	Doctors		District hospital	JSI	Pre-test		1a	2a	3a	4a	5a	6b	7a	8c	9b	10c	11a	12b	13a	14a	15b	16a	17a	18a	19a	20a	1	0	0	0	0	1	1	0	1	1	0	0	1	0	0	1	1	0	0	1	9		759809439	2c3ea391-3d34-406d-9ec6-58ef541f59ec	2026-03-24			submitted_via_web		vsXvzCWkMyVfniXAJUu9xq		uuid:2c3ea391-3d34-406d-9ec6-58ef541f59ec	150
+2026-03-24	2026-03-24		2026-03-24	ຕຶກການຢາຊັ້ນ2ໂຮງໝ໌ແຂວງ	Savannakhet	Atsaphone	ຕຸ່ນມະນີ ດວງຄຳໄຂ	Female	Savannakhet	Atsaphone	Doctors		District hospital	ໂຮງໝ໌ເມືອງ	Pre-test		1b	2b	3b	4a	5c	6a	7a	8c	9c	10c	11c	12b	13a	14c	15b	16a	17c	18a	19c	20a	0	1	1	0	0	0	1	0	0	1	1	0	1	1	0	1	0	0	0	1	9		759809441	5cc08c08-4532-48a1-9b44-cbde5103c6de	2026-03-24			submitted_via_web		vsXvzCWkMyVfniXAJUu9xq		uuid:5cc08c08-4532-48a1-9b44-cbde5103c6de	151
+2026-03-24	2026-03-24		2026-03-24	ຫ້ອງການສາທາເມືອງຈຳພອນ	Savannakhet	Champhone	ນາງ ພິດທະນຸສອນ	Female	Savannakhet	Champhone	Doctors		provincial hospital	ຫ້ອງປະຊຸມໂຮງໝໍແຂວງ	Pre-test		1a	2a	3b	4a	5c	6b	7a	8c	9c	10c	11c	12b	13a	14b	15c	16a	17b	18b	19c	20a	1	0	1	0	0	1	1	0	0	1	1	0	1	0	1	1	0	0	0	1	10		759809517	aff93e0a-e43c-4445-b4d2-dafc4d22405c	2026-03-24			submitted_via_web		vsXvzCWkMyVfniXAJUu9xq		uuid:aff93e0a-e43c-4445-b4d2-dafc4d22405c	152
+2026-03-24	2026-03-24		2026-03-24	ໂຮງຫມໍແຂວງ	Savannakhet	Kaysone Phomvihane	ນາງ ວິໄລລັດ ໄຊສົມພູ	Female	Savannakhet	Champhone	Nurses		District Health Office	ເມືອງຈຳພອນ	Pre-test		1a	2a	3a	4b	5c	6c	7a	8c	9c	10a	11c	12c	13a	14b	15c	16b	17a	18b	19b	20c	1	0	0	1	0	0	1	0	0	0	1	1	1	0	1	0	1	0	1	0	9		759809554	7252b39c-87b4-4889-b7df-0c1ae8d4fcce	2026-03-24			submitted_via_web		vsXvzCWkMyVfniXAJUu9xq		uuid:7252b39c-87b4-4889-b7df-0c1ae8d4fcce	153
+2026-03-24	2026-03-24		2026-03-24	ຫ້ອງປະຊຸມພະແນກ ສາທາລະນະສຸກແຂວງ ເຊກອງ	Sekong	Thateng	ອອນສະໄໝ ຫຼານປະເສິດ	Female	Sekong	Thateng	Midwives		District hospital	ໂຮງໝໍເມືອງທ່າແຕງ	Pre-test		1a	2b	3b	4a	5a	6a	7a	8c	9c	10c	11c	12c	13a	14c	15b	16a	17a	18a	19a	20a	1	1	1	0	0	0	1	0	0	1	1	1	1	1	0	1	1	0	0	1	12		759809766	18dd581f-6e63-49f4-b4a6-6356fd70debd	2026-03-24			submitted_via_web		vsXvzCWkMyVfniXAJUu9xq		uuid:4baeb0a2-5cb6-4507-bc04-b76de79a4e03	154
+2026-03-24	2026-03-24		2026-03-24	ຫ້ອງປະຊຸມ.ການຢາຊັ້ນ2	Savannakhet	Kaysone Phomvihane	ນ.ເພັດສະໄໝ  ໄຊຍະວົງສາ	Female	Savannakhet	Atsaphone	Midwives		District hospital	ໂຮງໝໍ່.ເມືອງອາດສະພອນ	Pre-test		1a	2b	3a	4a	5a	6b	7a	8c	9c	10c	11a	12b	13a	14c	15b	16a	17a	18b	19a	20a	1	1	0	0	0	1	1	0	0	1	0	0	1	1	0	1	1	0	0	1	10		759810849	155f7577-8716-44ab-9e36-60370a28d7ab	2026-03-24			submitted_via_web		vsXvzCWkMyVfniXAJUu9xq		uuid:155f7577-8716-44ab-9e36-60370a28d7ab	155
+2026-03-24	2026-03-24		2026-03-24	ໂຮງຫມໍແຂວງ	Savannakhet	Songkhone	ທ ໄກສອນ ສຸວັນລາສີ	Male	Savannakhet	Songkhone	Doctors		District hospital	ໂຮງຫມໍເມືອງສອງຄອນ	Pre-test		1a	2c	3b	4a	5a	6a	7b	8b	9b	10c	11c	12c	13a	14c	15b	16a	17a	18b	19b	20a	1	0	1	0	0	0	0	0	1	1	1	1	1	1	0	1	1	0	1	1	12		759810992	0d8116f1-5a98-49d6-a8c1-ee111f9c73c3	2026-03-24			submitted_via_web		vsXvzCWkMyVfniXAJUu9xq		uuid:0d8116f1-5a98-49d6-a8c1-ee111f9c73c3	156
+2026-03-24	2026-03-24		2026-03-24	ໂຮງຫມໍສອງຄອນ	Savannakhet	Songkhone	ທິບປະສົງ	Female	Savannakhet	Songkhone	Midwives		District hospital	ໂຮງຫມໍເມືອງສອງຄອນ	Pre-test		1a	2b	3a	4a	5c	6b	7a	8c	9c	10c	11c	12b	13a	14b	15b	16a	17c	18c	19c	20a	1	1	0	0	0	1	1	0	0	1	1	0	1	0	0	1	0	1	0	1	10		759810996	9626c898-29c0-4145-b114-771a534a524b	2026-03-24			submitted_via_web		vsXvzCWkMyVfniXAJUu9xq		uuid:9626c898-29c0-4145-b114-771a534a524b	157
+2026-03-24	2026-03-24		2026-03-24	ໂຮງໝໍແຂວງ	Savannakhet	Kaysone Phomvihane	ນາງ ວິໄລລັດ ໄຊສົມພູ	Female	Savannakhet	Champhone	Nurses		District Health Office	ສາທາລະນະສຸກເມືອງຈຳພອນ	Pre-test		1a	2a	3a	4b	5a	6c	7a	8c	9c	10a	11c	12b	13a	14b	15c	16a	17a	18b	19c	20c	1	0	0	1	0	0	1	0	0	0	1	0	1	0	1	1	1	0	0	0	8		759811395	5702a15f-7b0f-4a86-af53-9498537ea47e	2026-03-24			submitted_via_web		vsXvzCWkMyVfniXAJUu9xq		uuid:5702a15f-7b0f-4a86-af53-9498537ea47e	158
+2026-03-24	2026-03-25		2026-03-25	ໂຮງໝໍແຂວງ ຕຶກການຢາຊັ້ນ2	Savannakhet	Kaysone Phomvihane	ນາງພິດສະໄໝ ທອງສີອັກສອນ	Female	Savannakhet	Atsaphone	Nurses		District hospital	ໂຮງໝໍເມືອງອາດສະພອນ	Post-test		1a	2b	3b	4b	5b	6b	7a	8a	9c	10c	11c	12b	13a	14c	15c	16a	17a	18c	19b	20a	1	1	1	1	1	1	1	1	0	1	1	0	1	1	1	1	1	1	1	1	18		760302946	783185f5-daf4-4165-bc97-cfaf5fd1fecc	2026-03-25			submitted_via_web		vsXvzCWkMyVfniXAJUu9xq		uuid:783185f5-daf4-4165-bc97-cfaf5fd1fecc	159
+2026-03-24	2026-03-25		2026-03-25	ຫ້ອງປະຊຸມການຢາຊັ້ນສອງ	Savannakhet	Atsaphone	ໜູຈັນພຸດທະສິມມາ	Female	Savannakhet	Atsaphone	Nurses		District Health Office	ສາທາອາດສະພອນ	Post-test		1a	2b	3b	4b	5a	6a	7a	8a	9c	10c	11c	12b	13a	14c	15c	16a	17a	18a	19b	20a	1	1	1	1	0	0	1	1	0	1	1	0	1	1	1	1	1	0	1	1	15		760304808	bf8c2d2f-3a5f-46cd-9755-dba38011d681	2026-03-25			submitted_via_web		vsXvzCWkMyVfniXAJUu9xq		uuid:bf8c2d2f-3a5f-46cd-9755-dba38011d681	160
+2026-03-24	2026-03-25		2026-03-25	ໂຮງໝໍແຂວງສະຫວັນະເຂດ	Savannakhet	Champhone	ນ.ພຸດທະວົງ ອິນສີຊຽງໃໝ່	Female	Savannakhet	Champhone	Midwives		District hospital	ໂຮງໝໍເມືອງຈຳພອນ	Post-test		1a	2b	3b	4b	5b	6b	7a	8c	9b	10c	11c	12c	13a	14c	15c	16b	17a	18c	19c	20a	1	1	1	1	1	1	1	0	1	1	1	1	1	1	1	0	1	1	0	1	17		760306148	a3e99d4d-9d97-490b-bd9c-d813455f3229	2026-03-25			submitted_via_web		vsXvzCWkMyVfniXAJUu9xq		uuid:a3e99d4d-9d97-490b-bd9c-d813455f3229	161
+2026-03-24	2026-03-25		2026-03-25	ໂຮງໝໍແຂວງ	Savannakhet	Xaybouly	ພາບສອນວິໄລ ບຸນລໍາພັນ	Female	Savannakhet	Xaybouly	Nurses		District hospital	ໂຮງໝໍແຂວງ	Post-test		1a	2b	3b	4a	5a	6a	7a	8c	9a	10c	11a	12c	13a	14b	15b	16a	17c	18c	19c	20a	1	1	1	0	0	0	1	0	0	1	0	1	1	0	0	1	0	1	0	1	10		760306471	4601546e-dee5-4081-9edb-9fb8a0bff48b	2026-03-25			submitted_via_web		vsXvzCWkMyVfniXAJUu9xq		uuid:4601546e-dee5-4081-9edb-9fb8a0bff48b	162
+2026-03-24	2026-03-25		2026-03-25	ໂຮງໝໍແຂວງ	Savannakhet	Kaysone Phomvihane	ນາງ ວິໄລລັດ ໄຊສົມພູ	Female	Savannakhet	Champhone	Nurses		District hospital	ເມືອງຈຳພອນ	Post-test		1a	2b	3b	4b	5b	6b	7a	8a	9b	10c	11c	12c	13a	14c	15c	16a	17c	18c	19b	20a	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	0	1	1	1	19		760306743	6494e41c-d905-4cc9-a2c2-0e1fa5f6126d	2026-03-25			submitted_via_web		vsXvzCWkMyVfniXAJUu9xq		uuid:6494e41c-d905-4cc9-a2c2-0e1fa5f6126d	163
+2026-03-24	2026-03-25		2026-03-25	ໂຮງຫມໍແຂວງສະຫວັນນະເຂດ	Savannakhet	Kaysone Phomvihane	ນາງມະລີພອນ ທອງສຸວັນ	Female	Savannakhet	Xaybouly	Doctors		District hospital	ໂຮງຫມໍເມືອງໄຊບູລີ	Post-test		1a	2b	3b	4b	5b	6b	7a	8a	9a	10c	11c	12c	13a	14c	15b	16a	17a	18c	19b	20a	1	1	1	1	1	1	1	1	0	1	1	1	1	1	0	1	1	1	1	1	18		760306985	1425d481-1501-48cf-9642-69279a00fb15	2026-03-25			submitted_via_web		vsXvzCWkMyVfniXAJUu9xq		uuid:1425d481-1501-48cf-9642-69279a00fb15	164
+2026-03-24	2026-03-25		2026-03-25	ໂຮງໜໍແຂວງ	Savannakhet	Kaysone Phomvihane	ນ.ສຸດສະດາ ຈັນທະລາ	Female	Savannakhet	Phalanxay	Midwives		District hospital	ໂຮງໜໍເມືອງພະລານໄຊ	Post-test		1b	2b	3b	4a	5a	6b	7a	8a	9a	10c	11a	12b	13a	14b	15b	16a	17c	18a	19b	20a	0	1	1	0	0	1	1	1	0	1	0	0	1	0	0	1	0	0	1	1	10		760307001	9258fe39-4559-4181-968a-28a75878cf98	2026-03-25			submitted_via_web		vsXvzCWkMyVfniXAJUu9xq		uuid:9258fe39-4559-4181-968a-28a75878cf98	165
+2026-03-25	2026-03-25		2026-03-25	ໂຮງຫມໍແຂວງສະຫວັນນະເຂດ	Savannakhet	Kaysone Phomvihane	ສົມດອງ ສາຍໄຊຍະຈັນ	Male	Savannakhet	Phalanxay	Doctors		District hospital	ສາທາເມືອງພະລານໄຊ	Post-test		1a	2b	3b	4b	5b	6b	7a	8a	9a	10c	11c	12c	13a	14b	15c	16a	17a	18a	19b	20a	1	1	1	1	1	1	1	1	0	1	1	1	1	0	1	1	1	0	1	1	17		760307053	521ee61e-b8f5-4156-a715-7d08ab574d45	2026-03-25			submitted_via_web		vsXvzCWkMyVfniXAJUu9xq		uuid:521ee61e-b8f5-4156-a715-7d08ab574d45	166
+2026-03-24	2026-03-25		2026-03-25	ໂຮງໝໍແຂວງ	Savannakhet	Phalanxay	ພິມມາ	Female	Savannakhet	Phalanxay	Nurses		District hospital	ໂຮງໝໍເມືອງພະລານໄຊ	Post-test		1b	2b	3b	4a	5a	6b	7a	8a	9a	10c	11a	12b	13a	14b	15b	16a	17c	18a	19b	20a	0	1	1	0	0	1	1	1	0	1	0	0	1	0	0	1	0	0	1	1	10		760307194	67c72774-39bd-44e6-b1e6-20f83e164056	2026-03-25			submitted_via_web		vsXvzCWkMyVfniXAJUu9xq		uuid:67c72774-39bd-44e6-b1e6-20f83e164056	167
+2026-03-24	2026-03-25		2026-03-25	ໂຮງໝໍແຂວງ	Savannakhet	Phalanxay	ສົມຈິດ ໄຊຍະວົງ	Female	Savannakhet	Phalanxay	Doctors		District hospital	JSI	Post-test		1a	2b	3b	4b	5b	6b	7a	8a	9b	10c	11c	12c	13a	14c	15c	16a	17c	18c	19b	20a	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	0	1	1	1	19		760307407	d8526ade-6e8b-4712-bd22-13fd54b822c4	2026-03-25			submitted_via_web		vsXvzCWkMyVfniXAJUu9xq		uuid:d8526ade-6e8b-4712-bd22-13fd54b822c4	168
+2026-03-24	2026-03-25		2026-03-25	ຫ້ອງປະຊຸມໂຮງໝໍແຂວງ	Savannakhet	Kaysone Phomvihane	ນາງ ແອທອງ	Female	Savannakhet	Songkhone	Midwives		District Health Office	ແມ່ແລະເດັກສາທາເມືອງສອງຄອນ	Post-test		1a	2b	3b	4b	5b	6a	7a	8a	9a	10c	11c	12c	13a	14c	15b	16a	17a	18c	19b	20c	1	1	1	1	1	0	1	1	0	1	1	1	1	1	0	1	1	1	1	0	16		760307408	d972b0c3-fed4-4fda-95a0-b3283603796a	2026-03-25			submitted_via_web		vsXvzCWkMyVfniXAJUu9xq		uuid:d972b0c3-fed4-4fda-95a0-b3283603796a	169
+2026-03-25	2026-03-25		2026-03-25	ໂຮງໝໍແຂວງ	Savannakhet	Phalanxay	ນ.​ ເສດຖີ​ ເຄື່ອນນະວົງສາ	Female	Savannakhet	Phalanxay	Nurses		District Health Office	ສາທາເມືອງພະລານໄຊ	Post-test		1a	2b	3b	4b	5a	6b	7a	8a	9a	10c	11c	12c	13a	14b	15c	16a	17a	18c	19b	20a	1	1	1	1	0	1	1	1	0	1	1	1	1	0	1	1	1	1	1	1	17		760307645	a4867f42-d1b1-4752-a594-da32519f55c1	2026-03-25			submitted_via_web		vsXvzCWkMyVfniXAJUu9xq		uuid:a4867f42-d1b1-4752-a594-da32519f55c1	170
+2026-03-25	2026-03-25		2026-03-25	ໂຮງໝໍແຂວງ	Savannakhet	Kaysone Phomvihane	ກ໋ອດ ສຸວັນນະລາດ	Male	Savannakhet	Xaybouly	Doctors		District hospital	ໂຮງໝໍເມືອງ ໄຊບູລີ	Post-test		1a	2b	3b	4a	5b	6b	7a	8a	9a	10c	11c	12c	13a	14c	15c	16a	17a	18c	19b	20a	1	1	1	0	1	1	1	1	0	1	1	1	1	1	1	1	1	1	1	1	18		760307702	b164ea9b-cc45-4f69-ad75-cf73343908c3	2026-03-25			submitted_via_web		vsXvzCWkMyVfniXAJUu9xq		uuid:b164ea9b-cc45-4f69-ad75-cf73343908c3	171
+2026-03-24	2026-03-25		2026-03-25	ຫ້ອງປະຊຸມໂຮງໝໍແຂວງ	Savannakhet	Champhone	ນາງພິດທະນຸສອນ	Female	Savannakhet	Champhone	Doctors		District hospital	ສາທາເມືອງຈໍາພອນ	Post-test		1a	2b	3b	4a	5b	6a	7a	8a	9c	10c	11c	12c	13a	14b	15c	16a	17a	18c	19b	20a	1	1	1	0	1	0	1	1	0	1	1	1	1	0	1	1	1	1	1	1	16		760307760	039e2d4a-444d-4890-807b-ece8a6311916	2026-03-25			submitted_via_web		vsXvzCWkMyVfniXAJUu9xq		uuid:039e2d4a-444d-4890-807b-ece8a6311916	172
+2026-03-24	2026-03-25		2026-03-25	ໂຮງຫມໍແຂວງສະຫວັນນະເຂດ	Savannakhet	Xaybouly	ນ.ນົກ ພັນທະວົງສາ	Female	Savannakhet	Xaybouly	Midwives		District Health Office	ສາທາເມືອງໄຊບູລີ	Post-test		1a	2b	3b	4b	5b	6a	7a	8a	9b	10c	11a	12b	13a	14c	15b	16a	17a	18c	19b	20a	1	1	1	1	1	0	1	1	1	1	0	0	1	1	0	1	1	1	1	1	16		760308234	7604c844-5d4a-4110-8fce-b04a2579c019	2026-03-25			submitted_via_web		vsXvzCWkMyVfniXAJUu9xq		uuid:7604c844-5d4a-4110-8fce-b04a2579c019	173
+2026-03-24	2026-03-25		2026-03-25	ຫ້ອງປະຊຸມໂຮງຫມໍເເຂວງ	Savannakhet	Kaysone Phomvihane	ນ.ພິລາວັນ ອິນສີຊຽງໃຫ່ມ	Female	Savannakhet	Champhone	Doctors		District hospital	ສາທາເມືອງຈຳພອນ	Post-test		1a	2b	3b	4a	5b	6a	7a	8a	9a	10c	11c	12c	13a	14a	15c	16a	17a	18a	19b	20a	1	1	1	0	1	0	1	1	0	1	1	1	1	0	1	1	1	0	1	1	15		760308311	8928905d-dfb8-42e1-80f3-f07e8b968fa3	2026-03-25			submitted_via_web		vsXvzCWkMyVfniXAJUu9xq		uuid:8928905d-dfb8-42e1-80f3-f07e8b968fa3	174
+2026-03-24	2026-03-25		2026-03-25	ໂຮງຫມໍແຂວງ	Savannakhet	Kaysone Phomvihane	ນາງສົມຫວັງ	Female	Savannakhet	Xaybouly	Midwives		District hospital	ໂຮງຫມໍເມືອງໄຊບູລີ	Post-test		1a	2b	3b	4b	5b	6b	7a	8a	9b	10c	11c	12c	13a	14c	15c	16a	17a	18c	19b	20a	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	20		760308314	f2bb8517-84b8-466c-96bd-8fac0591892a	2026-03-25			submitted_via_web		vsXvzCWkMyVfniXAJUu9xq		uuid:f2bb8517-84b8-466c-96bd-8fac0591892a	175
+2026-03-24	2026-03-25		2026-03-25	ໂຮງຫມໍແຂວງສຫວັນະເຂດ	Savannakhet	Kaysone Phomvihane	ນ ທິດຕາວັນ ພັນສາລີທອງ	Female	Savannakhet	Songkhone	Doctors		District hospital	ໂຮງຫມໍເມືອງສອງຄອນ	Post-test		1a	2b	3b	4b	5b	6b	7a	8a	9a	10c	11c	12c	13a	14b	15c	16a	17a	18a	19b	20a	1	1	1	1	1	1	1	1	0	1	1	1	1	0	1	1	1	0	1	1	17		760308315	9759e904-6ead-43d1-a45c-9987e3cc32e4	2026-03-25			submitted_via_web		vsXvzCWkMyVfniXAJUu9xq		uuid:9759e904-6ead-43d1-a45c-9987e3cc32e4	176
+2026-03-25	2026-03-25		2026-03-25	ໂຮງໝໍແຂວງຊັ້ນ2	Savannakhet	Atsaphone	ນາງພອນທິບງາມວິໄລ	Female	Savannakhet	Atsaphone	Nurses		District Health Office	ຫ້ອງການສາທາ	Post-test		1a	2b	3b	4b	5a	6b	7a	8a	9a	10c	11a	12b	13a	14c	15c	16a	17a	18c	19b	20b	1	1	1	1	0	1	1	1	0	1	0	0	1	1	1	1	1	1	1	0	15		760308651	f027439f-8d09-4b47-8bdc-a8bdde1ee005	2026-03-25			submitted_via_web		vsXvzCWkMyVfniXAJUu9xq		uuid:f027439f-8d09-4b47-8bdc-a8bdde1ee005	177
+2026-03-24	2026-03-25		2026-03-25	ໂຮງຫມໍແຂວງ	Savannakhet	Songkhone	ທ ໄກສອນ ສຸວັນລາສີ	Male	Savannakhet	Songkhone	Doctors		District hospital	ສາທາເມືອງສອງຄອນ	Post-test		1a	2b	3b	4b	5b	6a	7a	8a	9a	10c	11c	12b	13a	14b	15c	16a	17a	18b	19b	20a	1	1	1	1	1	0	1	1	0	1	1	0	1	0	1	1	1	0	1	1	15		760309019	7ba74bd8-1297-4cf5-9f93-b20adf18914c	2026-03-25			submitted_via_web		vsXvzCWkMyVfniXAJUu9xq		uuid:7ba74bd8-1297-4cf5-9f93-b20adf18914c	178
+2026-03-24	2026-03-25		2026-03-25	ໂຮງໜໍ່ແຂວງ ສະຫັວນະເຂດ	Savannakhet	Champhone	ຄຳໃບ ແກ້ວມະນິວົງ	Female	Savannakhet	Champhone	Doctors		District hospital	ໂຮງໜໍ່ເມຶອງຈຳພອນ	Post-test		1a	2b	3b	4a	5b	6a	7a	8a	9a	10b	11b	12c	13c	14b	15b	16a	17b	18a	19b	20a	1	1	1	0	1	0	1	1	0	0	0	1	0	0	0	1	0	0	1	1	10		760309306	7c015710-f690-4dcf-afb0-0b745db449ba	2026-03-25			submitted_via_web		vsXvzCWkMyVfniXAJUu9xq		uuid:7c015710-f690-4dcf-afb0-0b745db449ba	179
+2026-03-24	2026-03-25		2026-03-25	ຫ້ອງປະຊຸມໂຮງໝໍແຂວງ	Savannakhet	Kaysone Phomvihane	ມີລິນດາ ໂດນສຸລິດ	Male	Savannakhet	Atsaphone	Doctors		District hospital	ໂຮງໝໍເມືອງອາດສະພອນ	Post-test		1a	2b	3b	4b	5b	6a	7a	8a	9a	10c	11c	12b	13a	14c	15a	16a	17a	18c	19b	20a	1	1	1	1	1	0	1	1	0	1	1	0	1	1	0	1	1	1	1	1	16		760309434	1619fbe2-54f6-4de4-9664-746ecf0a9d78	2026-03-25			submitted_via_web		vsXvzCWkMyVfniXAJUu9xq		uuid:6fe2d66f-2d90-445e-8a57-e5553b7be07e	180
+2026-03-24	2026-03-25		2026-03-25	ສະຫັວນນະເຂດ	Savannakhet	Songkhone	ນ ປຸ໋ຍ ໄຊເສດຖາ	Female	Savannakhet	Songkhone	Nurses		District hospital	ສອງຄອນ	Post-test		1a	2b	3b	4a	5a	6a	7a	8a	9b	10c	11c	12b	13a	14c	15b	16b	17a	18b	19c	20a	1	1	1	0	0	0	1	1	1	1	1	0	1	1	0	0	1	0	0	1	12		760309743	92c2f1c8-5a40-4ba9-af1a-62d39ff16a0b	2026-03-25			submitted_via_web		vsXvzCWkMyVfniXAJUu9xq		uuid:92c2f1c8-5a40-4ba9-af1a-62d39ff16a0b	181
+2026-03-24	2026-03-25		2026-03-25	ຕຶກການຢາຊັ້ນ2ໂຣງໝ໌ແຂວງ	Savannakhet	Atsaphone	ຕຸ່ນມະນີ ດວງຄຳໄຂ	Female	Savannakhet	Atsaphone	Doctors		District hospital	ໂຮງໝ່ເມືອງ	Post-test		1a	2b	3b	4b	5b	6a	7a	8a	9a	10c	11c	12c	13a	14c	15b	16a	17a	18c	19b	20a	1	1	1	1	1	0	1	1	0	1	1	1	1	1	0	1	1	1	1	1	17		760309968	cce838bf-f9b8-4770-855a-e259d18fa9ae	2026-03-25			submitted_via_web		vsXvzCWkMyVfniXAJUu9xq		uuid:cce838bf-f9b8-4770-855a-e259d18fa9ae	182
+2026-03-25	2026-03-25		2026-03-25	ໂຮງຫມໍແຂວງ	Savannakhet	Kaysone Phomvihane	ນາງ ດາວວີ ໄຊຍະລາດ	Female	Savannakhet	Xaybouly	Nurses		District hospital	ໂຮງຫມໍເມືອງ	Post-test		1a	2b	3b	4b	5a	6b	7a	8c	9b	10c	11b	12a	13a	14c	15b	16a	17a	18a	19b	20b	1	1	1	1	0	1	1	0	1	1	0	0	1	1	0	1	1	0	1	0	13		760310239	c50816f7-4aea-4ecc-b83a-c289c8133343	2026-03-25			submitted_via_web		vsXvzCWkMyVfniXAJUu9xq		uuid:c50816f7-4aea-4ecc-b83a-c289c8133343	183
+2026-03-24	2026-03-25		2026-03-25	ໂຮງຫມໍແຂວງ	Savannakhet	Kaysone Phomvihane	ທິບປະສົງ	Female	Savannakhet	Songkhone	Midwives		District hospital	ໂຮງຫມໍເມືອງສອງຄອນ	Post-test		1a	2b	3b	4b	5b	6a	7a	8a	9a	10c	11c	12c	13a	14c	15b	16a	17c	18a	19b	20a	1	1	1	1	1	0	1	1	0	1	1	1	1	1	0	1	0	0	1	1	15		760310720	73d27637-7cf3-4733-8f4c-ed5726d2b76e	2026-03-25			submitted_via_web		vsXvzCWkMyVfniXAJUu9xq		uuid:73d27637-7cf3-4733-8f4c-ed5726d2b76e	184
+2026-03-24	2026-03-25		2026-03-25	ໂຮງໜ໋ແຂວງ	Savannakhet	Champhone	ນາງສົມໃຈ  ອິນວີຊຽງໃໜ໋	Female	Savannakhet	Champhone	Midwives		District Health Office	ໂຮງໜ໋ເມືອງຈໍາພອນ	Post-test		1a	2b	3b	4b	5b	6a	7a	8c	9a	10c	11c	12c	13a	14c	15b	16a	17a	18a	19c	20a	1	1	1	1	1	0	1	0	0	1	1	1	1	1	0	1	1	0	0	1	14		760311176	3ec42f3a-e5b1-404a-88b4-13268f415831	2026-03-25			submitted_via_web		vsXvzCWkMyVfniXAJUu9xq		uuid:3ec42f3a-e5b1-404a-88b4-13268f415831	185
+2026-03-25	2026-03-25		2026-03-25	ໂຮງໜໍ່ແຂວງ	Savannakhet	Champhone	ຄຳໃບ ແກ້ວມະນີວົງ	Female	Savannakhet	Champhone	Doctors		District Health Office	ໂຮງໝໍເມືອງຈຳພອນ	Post-test		1a	2b	3b	4b	5b	6a	7a	8c	9a	10c	11c	12c	13a	14c	15b	16a	17a	18a	19c	20a	1	1	1	1	1	0	1	0	0	1	1	1	1	1	0	1	1	0	0	1	14		760312341	48bc3418-fbae-4929-b754-a5f51949ae05	2026-03-25			submitted_via_web		vsXvzCWkMyVfniXAJUu9xq		uuid:48bc3418-fbae-4929-b754-a5f51949ae05	186
+2026-03-25	2026-03-25		2026-03-25	ໂຮງໝໍແຂວງ	Savannakhet	Phalanxay	ນ​ ເສດຖີ​ ເຄື່ອນນະວົງສາ	Female	Savannakhet	Phalanxay	Nurses		District Health Office	ສາທາເມືອງພະລານໄຊ	Post-test		1a	2b	3b	4b	5a	6b	7a	8a	9a	10c	11c	12c	13a	14c	15c	16a	17a	18c	19b	20a	1	1	1	1	0	1	1	1	0	1	1	1	1	1	1	1	1	1	1	1	18		760324114	59b8542b-50f9-409c-b719-22629f0dfeb4	2026-03-25			submitted_via_web		vsXvzCWkMyVfniXAJUu9xq		uuid:59b8542b-50f9-409c-b719-22629f0dfeb4	187
+2026-03-24	2026-03-25		2026-03-25	ຕືກ.ການຢາຊັ້ນ2	Savannakhet	Kaysone Phomvihane	ນ.ເພັດສະໄໝ ໄຊຍະວົງສາ	Female	Savannakhet	Atsaphone	Midwives		District hospital	ໂຮງໝໍ່ເມືອງ	Post-test		1a	2b	3b	4a	5b	6a	7a	8a	9b	10c	11c	12b	13a	14c	15b	16b	17a	18a	19c	20a	1	1	1	0	1	0	1	1	1	1	1	0	1	1	0	0	1	0	0	1	13		760324848	8062487e-dcb4-4d76-a4d5-52ff5e1ff8bd	2026-03-25			submitted_via_web		vsXvzCWkMyVfniXAJUu9xq		uuid:8062487e-dcb4-4d76-a4d5-52ff5e1ff8bd	188
+2026-03-25	2026-03-25		2026-03-25	ໂຮງຫມໍແຂວງ	Savannakhet	Kaysone Phomvihane	ນ ເພັດດາວັນ ແມນວິໄລ	Female	Savannakhet	Songkhone	Midwives		District hospital	ໂຮງຫມໍເມືອງ	Post-test		1a	2b	3b	4b	5b	6b	7a	8a	9b	10c	11a	12c	13a	14c	15c	16a	17a	18a	19b	20a	1	1	1	1	1	1	1	1	1	1	0	1	1	1	1	1	1	0	1	1	18		760327089	b0a53b67-1e2c-4f6c-af33-6b2e441c2668	2026-03-25			submitted_via_web		vsXvzCWkMyVfniXAJUu9xq		uuid:b0a53b67-1e2c-4f6c-af33-6b2e441c2668	189
+2026-03-24	2026-03-26		2026-03-24	ຫ້ອງການປະກັນສັງຄົມ	Oudomxay	Beng	ພອຍໄພລີນ ສີລິໄຊ	Female	Oudomxay	Beng	Nurses		District hospital	ໂຮງໝໍເມືອງແບງ	Post-test		1a	2b	3b	4b	5b	6b	7a	8a	9a	10c	11a	12b	13a	14b	15b	16a	17c	18c	19c	20a	1	1	1	1	1	1	1	1	0	1	0	0	1	0	0	1	0	1	0	1	13		760707164	1f2cf6ea-2918-48e8-b368-4e4d4e6718fc	2026-03-26			submitted_via_web		vsXvzCWkMyVfniXAJUu9xq		uuid:1f2cf6ea-2918-48e8-b368-4e4d4e6718fc	190
+2026-03-24	2026-03-26		2026-03-26	ຫ້ອງການປະກັນສັງຄົມແຂວງ	Oudomxay	Xay	ທ.ສຸລິນໄຊ ສຸພາໄຊ	Male	Oudomxay	Pakbeng	Other	ຄະນະໂຮງໝໍ	District hospital	ໂຮງໝໍເມືອງປາກແບງ	Post-test		1a	2b	3b	4b	5b	6b	7a	8a	9c	10c	11a	12c	13a	14b	15a	16a	17a	18c	19a	20a	1	1	1	1	1	1	1	1	0	1	0	1	1	0	0	1	1	1	0	1	15		760708696	f3ad370a-dbbe-4f18-a06e-e4d9f9df6d91	2026-03-26			submitted_via_web		vsXvzCWkMyVfniXAJUu9xq		uuid:f3ad370a-dbbe-4f18-a06e-e4d9f9df6d91	191
+2026-03-24	2026-03-26		2026-03-26	ຫ້ອງການປະກັນສຸຂະພາບແຂວງອຸດົມໄຊ	Oudomxay	Beng	ພິດສະໄໝ ແກ້ວວົງສາ	Female	Oudomxay	Beng	Nurses		District Health Office	ສາທາເມືອງແບງ	Post-test		1a	2b	3b	4a	5b	6b	7b	8c	9a	10c	11c	12c	13a	14b	15b	16a	17a	18c	19c	20a	1	1	1	0	1	1	0	0	0	1	1	1	1	0	0	1	1	1	0	1	13		760710595	8d67cd6a-7850-4e71-ab34-620e4fc52056	2026-03-26			submitted_via_web		vsXvzCWkMyVfniXAJUu9xq		uuid:8d67cd6a-7850-4e71-ab34-620e4fc52056	192
+2026-03-24	2026-03-26		2026-03-26	ຫ້ອງປະຊຸມສາທາແຂວງເຊກອງ	Sekong	Lamam	ຈັນທະຈອນ ສີສຸລາດ	Female	Sekong	Thateng	Doctors		District hospital	ໂຮງໝໍເມືອງທ່າແຕງ	Post-test		1b	2b	3b	4b	5b	6b	7a	8c	9a	10c	11b	12a	13a	14c	15c	16a	17a	18c	19a	20a	0	1	1	1	1	1	1	0	0	1	0	0	1	1	1	1	1	1	0	1	14		760711806	07f92578-28b4-4772-936a-9a142f13be1a	2026-03-26			submitted_via_web		vsXvzCWkMyVfniXAJUu9xq		uuid:07f92578-28b4-4772-936a-9a142f13be1a	193
+2026-03-26	2026-03-26		2026-03-26	ຫ້ອງການປະກັນສຸຂະພາບ	Oudomxay	Xay	ທ ສິງໄຊ ສີອຳໄພ	Male	Oudomxay	Beng	Doctors		District hospital	ໂຮງໝໍເມືອງແບງ	Post-test		1a	2b	3b	4b	5b	6b	7a	8c	9a	10c	11a	12c	13a	14b	15b	16a	17a	18c	19c	20a	1	1	1	1	1	1	1	0	0	1	0	1	1	0	0	1	1	1	0	1	14		760712196	d105c791-55f6-4fb9-997b-5a91ef2b0eb0	2026-03-26			submitted_via_web		vsXvzCWkMyVfniXAJUu9xq		uuid:d105c791-55f6-4fb9-997b-5a91ef2b0eb0	194
+2026-03-24	2026-03-26		2026-03-26	ຫ້ອງປະຊຸມ ພະແນກ ສາທາລະນະສຸກແຂວງ ເຊກອງ	Sekong	Dakcheung	ຈັນຖະໝອມ ປັນຍາຈັກ	Female	Sekong	Dakcheung	Midwives		District hospital	ໂຮງຫມໍເມືອງ	Post-test		1b	2b	3b	4b	5b	6b	7a	8c	9a	10c	11b	12a	13a	14c	15c	16a	17a	18c	19a	20a	0	1	1	1	1	1	1	0	0	1	0	0	1	1	1	1	1	1	0	1	14		760712206	8b7a308e-c08c-49fd-87fa-5baf6866a55a	2026-03-26			submitted_via_web		vsXvzCWkMyVfniXAJUu9xq		uuid:60f09f53-7026-4a5c-8440-5d05f3899c16	195
+2026-03-24	2026-03-26		2026-03-26	ຫ້ອງປະຊຸມ ພະແນກ ສາທາລະນະສຸກແຂວງ ເຊກອງ	Sekong	Lamam	ເກດເກສີ ໄຊສົງຄາມ	Female	Sekong	Thateng	Doctors		District Health Office	ຫ້ອງການສາທາເມືອງທ່າແຕງ	Post-test		1b	2b	3b	4b	5b	6b	7a	8c	9a	10c	11b	12a	13a	14c	15c	16a	17a	18c	19a	20a	0	1	1	1	1	1	1	0	0	1	0	0	1	1	1	1	1	1	0	1	14		760712264	88ff9be3-f476-4139-a5fa-30dfda7b3064	2026-03-26			submitted_via_web		vsXvzCWkMyVfniXAJUu9xq		uuid:10ad5958-9a36-454a-9bce-c33d5e3bb1b1	196
+2026-03-26	2026-03-26		2026-03-26	ຫ້ອງການປະກັນສັງຄົມ	Oudomxay	Houn	ນາງ ວົງເດືອນ ພາສັນຍາ	Female	Oudomxay	Houn	Midwives		District hospital	ໂຮງໝໍເມືອງຮຸນ	Post-test		1a	2b	3b	4b	5b	6b	7a	8c	9a	10c	11a	12c	13a	14b	15c	16a	17a	18a	19b	20a	1	1	1	1	1	1	1	0	0	1	0	1	1	0	1	1	1	0	1	1	15		760712616	6c55b8d9-b45a-42b6-b236-dbcc57a70544	2026-03-26			submitted_via_web		vsXvzCWkMyVfniXAJUu9xq		uuid:6c55b8d9-b45a-42b6-b236-dbcc57a70544	197
+2026-03-26	2026-03-26		2026-03-26	ຫອ້ງປະຊຸມຫອ້ງການປະກັນສັງຄົມ	Oudomxay	Xay	ນາງໄພວອນ ແກ້ວບຸນມີ	Female	Oudomxay	Beng	Doctors		District hospital	ໂຮງໝໍເມືອງແບງແຂວງອຸດົມໄຊ	Post-test		1a	2b	3b	4b	5b	6b	7a	8a	9a	10c	11c	12b	13a	14b	15b	16a	17c	18c	19c	20a	1	1	1	1	1	1	1	1	0	1	1	0	1	0	0	1	0	1	0	1	14		760712724	0a5e0897-d434-4845-bc08-6355552807a5	2026-03-26			submitted_via_web		vsXvzCWkMyVfniXAJUu9xq		uuid:0a5e0897-d434-4845-bc08-6355552807a5	198
+2026-03-24	2026-03-26		2026-03-26	ພະແນກສາທາ	Sekong	Thateng	ຈັນດີ ຜາສຸກ	Female	Sekong	Dakcheung	Midwives		District hospital	ໂຮງໜໍ	Post-test		1b	2b	3b	4b	5b	6b	7a	8c	9a	10c	11b	12a	13a	14a	15c	16a	17a	18c	19a	20a	0	1	1	1	1	1	1	0	0	1	0	0	1	0	1	1	1	1	0	1	13		760712759	16be4527-c7d1-4a44-b6f6-eef9941862df	2026-03-26			submitted_via_web		vsXvzCWkMyVfniXAJUu9xq		uuid:16be4527-c7d1-4a44-b6f6-eef9941862df	199
+2026-03-24	2026-03-26		2026-03-26	ພະແນກສາທາລະນະສຸກແຂວງ	Sekong	Thateng	ອອນສະໄໝ ຫຼານປະເສີດ	Female	Sekong	Thateng	Midwives		District hospital	ໂຮງໝໍເມືອງທ່າແຕງ	Post-test		1b	2b	3b	4b	5b	6b	7a	8c	9a	10c	11b	12a	13a	14c	15c	16a	17a	18c	19a	20a	0	1	1	1	1	1	1	0	0	1	0	0	1	1	1	1	1	1	0	1	14		760712779	1f42a5fb-6eea-4491-b3c8-ab460ea834d6	2026-03-26			submitted_via_web		vsXvzCWkMyVfniXAJUu9xq		uuid:1f42a5fb-6eea-4491-b3c8-ab460ea834d6	200
+2026-03-26	2026-03-26		2026-03-26	ຫ້ອງປະຊຸມ ພະແນກ ສາທາລະນະສຸກແຂວງ ເຊກອງ	Sekong	Dakcheung	ທອງຄຳ ແກ້ວມະນີໄລ	Male	Sekong	Dakcheung	Doctors		District hospital	ຫ້ອງການສາທາເມືອງ	Post-test		1b	2b	3b	4b	5b	6b	7a	8c	9a	10c	11b	12a	13a	14c	15c	16a	17a	18c	19a	20a	0	1	1	1	1	1	1	0	0	1	0	0	1	1	1	1	1	1	0	1	14		760712829	e767e77b-87df-4b6b-8ed2-444248b237e7	2026-03-26			submitted_via_web		vsXvzCWkMyVfniXAJUu9xq		uuid:83f33d23-91aa-4a18-91b3-b85eb153e437	201
+2026-03-24	2026-03-26		2026-03-26	ຫ້ອງປະຊຸມ ພະແນກ ສາທາລະນະສຸກແຂວງ ເຊກອງ	Sekong	Lamam	ໄໝຄຳ ປອດສຸລິຍາ	Female	Sekong	Kaleum	Nurses		District Health Office	ຫ້ອງການສາທາເມືອງ	Post-test		1a	2b	3b	4c	5a	6a	7a	8a	9c	10c	11b	12a	13a	14c	15c	16a	17a	18c	19a	20a	1	1	1	0	0	0	1	1	0	1	0	0	1	1	1	1	1	1	0	1	13		760712884	049bd2dd-3da4-4af0-bb72-a7f149386655	2026-03-26			submitted_via_web		vsXvzCWkMyVfniXAJUu9xq		uuid:2a8a158e-e799-43d1-b4f4-e412744d8127	202
+2026-03-24	2026-03-26		2026-03-26	ພະແນກສາທາລະນະສຸກແຂວງເຊກອງ	Sekong	Lamam	ແກ້ວມະນີ ພົມມະຈັນ	Female	Sekong	Kaleum	Doctors		District hospital	ຫ້ອງການສາທາເມືອງກະລືມ	Post-test		1b	2b	3b	4b	5b	6b	7a	8c	9a	10c	11b	12a	13a	14c	15c	16a	17a	18c	19a	20a	0	1	1	1	1	1	1	0	0	1	0	0	1	1	1	1	1	1	0	1	14		760712958	20ca7a2b-8ab8-4feb-8176-14ccd0079a00	2026-03-26			submitted_via_web		vsXvzCWkMyVfniXAJUu9xq		uuid:20ca7a2b-8ab8-4feb-8176-14ccd0079a00	203
+2026-03-24	2026-03-26		2026-03-26	ຫ້ອງການປະກັນສັງຄົມ	Oudomxay	Beng	ນາງແສງສະຫັວນອີນຕະວົງ	Female	Oudomxay	Beng	Midwives		District hospital	ໂຮງໝໍ່ເມືອງແບງ	Post-test		1a	2b	3b	4b	5b	6b	7a	8a	9a	10c	11c	12c	13a	14b	15b	16a	17a	18a	19c	20a	1	1	1	1	1	1	1	1	0	1	1	1	1	0	0	1	1	0	0	1	15		760713094	498c2817-0e01-4c42-b868-657f75446aba	2026-03-26			submitted_via_web		vsXvzCWkMyVfniXAJUu9xq		uuid:498c2817-0e01-4c42-b868-657f75446aba	204
+2026-03-24	2026-03-26		2026-03-26	ຫ້ອງປະຊຸມ ພະແນກ ສາທາລະນະສຸກແຂວງ ເຊກອງ	Sekong	Lamam	ອົ້ນ ໄຊຍະສອນ	Female	Sekong	Thateng	Midwives		District Health Office	ຫ້ອງການສາທາເມືອງທ່າແຕງ	Post-test		1b	2b	3b	4b	5b	6b	7a	8c	9a	10c	11b	12a	13a	14b	15b	16a	17a	18c	19a	20a	0	1	1	1	1	1	1	0	0	1	0	0	1	0	0	1	1	1	0	1	12		760713120	3a3e2f7e-9c62-4350-be51-f9d10ba958b5	2026-03-26			submitted_via_web		vsXvzCWkMyVfniXAJUu9xq		uuid:761e9d38-3a06-46a2-8a7d-794cb7107775	205
+2026-03-26	2026-03-26		2026-03-26	ຫ້ອງປະຊຸມພະແນກສາທາແຂວງ	Sekong	Lamam	ວຽງສະໄໝ ເລຫວຽດມ່ວງ	Female	Sekong	Dakcheung	Midwives		District hospital	ໂຮງຫມໍເມືອງ	Post-test		1b	2b	3b	4b	5b	6b	7a	8c	9a	10c	11b	12a	13a	14c	15c	16a	17a	18c	19a	20a	0	1	1	1	1	1	1	0	0	1	0	0	1	1	1	1	1	1	0	1	14		760713250	46a11ef6-bed3-4545-a5d3-72d5a178dffd	2026-03-26			submitted_via_web		vsXvzCWkMyVfniXAJUu9xq		uuid:46a11ef6-bed3-4545-a5d3-72d5a178dffd	206
+2026-03-24	2026-03-26		2026-03-26	ຫ້ອງປະຊຸມ ພະແນກ ສາທາລະນະສຸກແຂວງ ເຊກອງ	Sekong	Lamam	ນໍ້າເພັດ ສຸຂານຸວົງ	Female	Sekong	Lamam	Primary health care		District Health Office	ສາທາລະນະສຸກເມືອງລະມາມ	Post-test		1a	2b	3b	4b	5b	6b	7a	8a	9c	10c	11c	12a	13a	14c	15c	16a	17a	18c	19a	20a	1	1	1	1	1	1	1	1	0	1	1	0	1	1	1	1	1	1	0	1	17		760713340	d9f1eb19-4f4b-4cbf-9e0f-ca9d70c65645	2026-03-26			submitted_via_web		vsXvzCWkMyVfniXAJUu9xq		uuid:e736b0e1-0451-4e60-8a86-947c650755e8	207
+2026-03-24	2026-03-26		2026-03-26	ຫ້ອງປະຊຸມ ພະແນກ ສາທາລະນະສຸກແຂວງ ເຊກອງ	Sekong	Kaleum	ລຳທຽນ ແກ້ວອາພັບ	Female	Sekong	Kaleum	Other	ຫົວຫນ້າສົ່ງເສີມສຸຂະພາບ	District Health Office	ສາທາລະນະສຸກເມືອງກະລືມ	Post-test		1b	2b	3b	4b	5b	6b	7a	8a	9a	10c	11c	12a	13a	14c	15c	16a	17a	18c	19a	20a	0	1	1	1	1	1	1	1	0	1	1	0	1	1	1	1	1	1	0	1	16		760713431	b867f026-e694-42f1-bf89-a9a4ada8c1c2	2026-03-26			submitted_via_web		vsXvzCWkMyVfniXAJUu9xq		uuid:57e82fcc-211a-452a-949e-c5c3884f5e82	208
+2026-03-24	2026-03-26		2026-03-26	ຫ້ອງປະຊຸມ ພະແນກ ສາທາລະນະສຸກແຂວງ ເຊກອງ	Sekong	Dakcheung	ອາສະຫວັນ ສູ່ລິຍິ	Female	Sekong	Dakcheung	Doctors		District hospital	ໂຮງໝໍເມືອງດາກຈຶງ	Post-test		1a	2b	3b	4b	5b	6b	7a	8a	9c	10c	11c	12a	13a	14c	15c	16a	17a	18c	19a	20a	1	1	1	1	1	1	1	1	0	1	1	0	1	1	1	1	1	1	0	1	17		760713605	143ac7a7-49d4-4017-82a1-de7c235da911	2026-03-26			submitted_via_web		vsXvzCWkMyVfniXAJUu9xq		uuid:03913fb4-5175-4c68-8ace-3c011a48981e	209
+2026-03-26	2026-03-26		2026-03-26	ຫ້ອງປະຊຸມ ພະແນກ ສາທາລະນະສຸກແຂວງ ເຊກອງ	Sekong	Dakcheung	ແສງນາພອນ ວິພົນຄຳເຍືອງ	Male	Sekong	Dakcheung	Primary health care		District Health Office	ໂຮງໝໍດາກຈືງ	Post-test		1a	2b	3b	4b	5b	6b	7a	8a	9a	10c	11c	12a	13a	14c	15c	16a	17a	18c	19a	20a	1	1	1	1	1	1	1	1	0	1	1	0	1	1	1	1	1	1	0	1	17		760713937	26878884-7c8f-44fa-9b2d-1259bbc284be	2026-03-26			submitted_via_web		vsXvzCWkMyVfniXAJUu9xq		uuid:1265776a-0efc-4ff5-a7cc-9bc88a7f58b4	210
+2026-03-24	2026-03-26		2026-03-26	ຫ້ອງການປະກັນສຸຂະພາບ	Oudomxay	Xay	ນາງປີ່ນ	Female	Oudomxay	Houn	Midwives		District Health Office	ສາທາເມືອງ	Post-test		1a	2b	3b	4b	5b	6a	7a	8a	9c	10c	11b	12a	13a	14c	15b	16a	17a	18a	19a	20a	1	1	1	1	1	0	1	1	0	1	0	0	1	1	0	1	1	0	0	1	13		760714348	96cd7f58-180a-419f-ae81-106733a60f5a	2026-03-26			submitted_via_web		vsXvzCWkMyVfniXAJUu9xq		uuid:96cd7f58-180a-419f-ae81-106733a60f5a	211
+2026-03-24	2026-03-26		2026-03-26	ຫ້ອງການປະກັນສັງຄົມ	Oudomxay	Xay	ດຣ.ພົມມະເລດ ພົມມະລີສັກ	Male	Oudomxay	Houn	Doctors		District hospital	ໂຮງໝໍເມືອງຮຸນ	Post-test		1a	2b	3b	4b	5a	6a	7a	8c	9c	10c	11c	12c	13a	14c	15b	16a	17a	18c	19a	20a	1	1	1	1	0	0	1	0	0	1	1	1	1	1	0	1	1	1	0	1	14		760715707	261a7ba9-7e73-43d3-aefe-eb5a6d1ac729	2026-03-26			submitted_via_web		vsXvzCWkMyVfniXAJUu9xq		uuid:261a7ba9-7e73-43d3-aefe-eb5a6d1ac729	212
+2026-03-24	2026-03-26		2026-03-26	ຫ້ອງການປະກັນສັງຄົມ	Oudomxay	Xay	ຕ໋າ	Female	Oudomxay	Nga	Nurses		District hospital	ໂຮງໝໍເມືອງງາ	Post-test		1a	2b	3b	4b	5b	6b	7a	8a	9a	10c	11c	12c	13a	14b	15c	16a	17a	18c	19b	20a	1	1	1	1	1	1	1	1	0	1	1	1	1	0	1	1	1	1	1	1	18		760715966	d6f929ea-8eb1-4f4e-9cb4-626e97cfa78f	2026-03-26			submitted_via_web		vsXvzCWkMyVfniXAJUu9xq		uuid:d6f929ea-8eb1-4f4e-9cb4-626e97cfa78f	213
+2026-03-24	2026-03-26		2026-03-26	ຫ້ງປະຊຸມສະວັດດີການ	Oudomxay	Xay	ພອນມະນີ	Female	Oudomxay	Nga	Midwives		District hospital	ສາທາເມືອງງາ	Post-test		1a	2b	3b	4b	5b	6a	7a	8a	9a	10c	11c	12c	13a	14b	15b	16a	17a	18c	19a	20a	1	1	1	1	1	0	1	1	0	1	1	1	1	0	0	1	1	1	0	1	15		760716353	d4494c5e-7de3-427e-8175-5ce57ecbaf5a	2026-03-26			submitted_via_web		vsXvzCWkMyVfniXAJUu9xq		uuid:d4494c5e-7de3-427e-8175-5ce57ecbaf5a	214
+2026-03-24	2026-03-26		2026-03-26	ຫ້ອງການສະຫວັນດີການ	Oudomxay	Xay	ນ ສົມພອນສີລິສຸກ	Female	Oudomxay	Nga	Midwives		District Health Office	ສາທາເມືອງງາ	Post-test		1a	2b	3b	4b	5b	6a	7a	8a	9a	10c	11c	12c	13a	14b	15b	16a	17a	18c	19a	20a	1	1	1	1	1	0	1	1	0	1	1	1	1	0	0	1	1	1	0	1	15		760716410	b1588779-15c4-4ed5-8ea1-679b82aad1e3	2026-03-26			submitted_via_web		vsXvzCWkMyVfniXAJUu9xq		uuid:b1588779-15c4-4ed5-8ea1-679b82aad1e3	215
+2026-03-24	2026-03-26		2026-03-26	ຫ້ອງດານສະຫວັດດີການສັງຄົມ	Oudomxay	Xay	ຈັນສຸກຈັນທະວົງ	Female	Oudomxay	Nga	Midwives		District Health Office	ໂຮງຫມໍເມືອງງາ	Post-test		1a	2b	3b	4b	5b	6a	7a	8a	9a	10c	11c	12c	13a	14b	15c	16a	17a	18c	19c	20a	1	1	1	1	1	0	1	1	0	1	1	1	1	0	1	1	1	1	0	1	16		760716900	b929d493-f536-4c26-a404-3bd687e28c4e	2026-03-26			submitted_via_web		vsXvzCWkMyVfniXAJUu9xq		uuid:b929d493-f536-4c26-a404-3bd687e28c4e	216
+2026-03-24	2026-03-26		2026-03-26	ປະກັນສັງຄົມ	Oudomxay	Xay	ນາງ ແກ້ວມະນີ ຈິດຕະວົງ	Female	Oudomxay	Nga	Doctors		District hospital	ນາງ ແກ້ວມະນີ ຈິດຕະວົງ	Post-test		1a	2b	3b	4b	5b	6a	7a	8a	9a	10c	11c	12b	13a	14b	15c	16a	17a	18c	19b	20a	1	1	1	1	1	0	1	1	0	1	1	0	1	0	1	1	1	1	1	1	16		760716905	8787bd79-3a11-4484-ab11-e72e127c8d1e	2026-03-26			submitted_via_web		vsXvzCWkMyVfniXAJUu9xq		uuid:8787bd79-3a11-4484-ab11-e72e127c8d1e	217
+2026-03-24	2026-03-26		2026-03-26	ຫ້ອງການປະກັນສຸຂະພາບແຂວງອຸດົມໄຊ	Oudomxay	Xay	ດຣ ແພງດີ ຄຳແກ້ວມະນີ	Female	Oudomxay	Nga	Other	ຮອງຫົວໜ້າຫ້ອງການ	District Health Office	ຫ້ອງການສາທາ	Post-test		1a	2b	3b	4b	5b	6a	7a	8a	9a	10c	11c	12c	13a	14b	15c	16a	17a	18c	19c	20a	1	1	1	1	1	0	1	1	0	1	1	1	1	0	1	1	1	1	0	1	16		760717047	458a610f-b479-470a-a645-f99dcaf10fc3	2026-03-26			submitted_via_web		vsXvzCWkMyVfniXAJUu9xq		uuid:458a610f-b479-470a-a645-f99dcaf10fc3	218
+2026-03-26	2026-03-26		2026-03-26	ຫ້ອງການປະກັນສັງຄົມ	Oudomxay	Xay	ດຣ ນສົມຈິດ ພົງສະຫວັດ	Female	Oudomxay	Houn	Doctors		District hospital	ໂງໝໍເມືອງຮຸນ	Post-test		1a	2b	3b	4b	5b	6a	7a	8a	9c	10c	11c	12c	13a	14c	15c	16a	17a	18c	19a	20a	1	1	1	1	1	0	1	1	0	1	1	1	1	1	1	1	1	1	0	1	17		760717080	db3666f8-d6fa-48c5-9b00-da2082f5c780	2026-03-26			submitted_via_web		vsXvzCWkMyVfniXAJUu9xq		uuid:db3666f8-d6fa-48c5-9b00-da2082f5c780	219
+2026-03-26	2026-03-26		2026-03-26	ຫ້ອງການປະກັນສັງຄົມ	Oudomxay	Xay	ນາງ ລຳເພີນ ນາລີແກ້ວ	Female	Oudomxay	Houn	Doctors		District hospital	ໂຮງໝໍເມືອງຮຸນ	Post-test		1a	2b	3b	4b	5b	6b	7a	8a	9a	10c	11c	12c	13a	14c	15b	16a	17a	18c	19a	20a	1	1	1	1	1	1	1	1	0	1	1	1	1	1	0	1	1	1	0	1	17		760717432	332784fd-6233-4f8a-a993-42b36e0876c5	2026-03-26			submitted_via_web		vsXvzCWkMyVfniXAJUu9xq		uuid:332784fd-6233-4f8a-a993-42b36e0876c5	220
+2026-03-24	2026-03-26		2026-03-26	ຫ້ອງປະຊຸມ ພະແນກ ສາທາລະນະສຸກແຂວງ ເຊກອງ	Sekong	Lamam	ສີສຸວົງ ໄຊຍະວົງ	Male	Sekong	Thateng	Doctors		District hospital	ໂຮງຫມໍເມືອງທ່າເເຕງ	Post-test		1b	2b	3b	4a	5b	6a	7a	8a	9a	10c	11c	12b	13a	14c	15b	16a	17c	18a	19a	20a	0	1	1	0	1	0	1	1	0	1	1	0	1	1	0	1	0	0	0	1	11		760717694	1eb93d91-d363-48c8-96fe-2ef4b6d7625a	2026-03-26			submitted_via_web		vsXvzCWkMyVfniXAJUu9xq		uuid:427072b9-150a-4bce-9133-6dc94b8cb5c2	221
+2026-03-24	2026-03-26		2026-03-26	ຫ້ອງການປະກັນສັງຄົມແຂວງ	Oudomxay	Xay	ນ ປ້ອມ ພູມມາວອນ	Female	Oudomxay	Pakbeng	Nurses		District hospital	ໂຮງໝໍເມືອງ ປາກແບງ	Post-test		1a	2b	3b	4b	5b	6b	7a	8a	9c	10c	11a	12b	13a	14b	15c	16a	17a	18c	19b	20a	1	1	1	1	1	1	1	1	0	1	0	0	1	0	1	1	1	1	1	1	16		760717713	1ae51d65-c70d-45c7-b276-0dd39ab3b9b8	2026-03-26			submitted_via_web		vsXvzCWkMyVfniXAJUu9xq		uuid:1ae51d65-c70d-45c7-b276-0dd39ab3b9b8	222
+2026-03-24	2026-03-26		2026-03-26	ຫ້ອງການປະກັນສັງຄົມ	Oudomxay	Xay	ໜູນີ່	Female	Oudomxay	Pakbeng	Nurses		District Health Office	ສາທາເມືອງປາກແບງ	Post-test		1a	2b	3b	4b	5b	6a	7a	8a	9b	10c	11c	12b	13a	14c	15c	16a	17a	18c	19b	20a	1	1	1	1	1	0	1	1	1	1	1	0	1	1	1	1	1	1	1	1	18		760718414	5a834c0f-051c-4bca-b10e-f45cbe1a7d0b	2026-03-26			submitted_via_web		vsXvzCWkMyVfniXAJUu9xq		uuid:5a834c0f-051c-4bca-b10e-f45cbe1a7d0b	223
+2026-03-26	2026-03-26		2026-03-26	ຫ້ອງປະຊຸມພະແນກສາທາ	Sekong	Thateng	ສະພານັນ ຈັນທະວີຈິດ	Female	Sekong	Thateng	Doctors		District hospital	ໂຮງໝໍເມືອງທ່າແຕງ	Post-test		1a	2b	3b	4b	5b	6b	7a	8a	9c	10c	11c	12a	13a	14c	15c	16a	17a	18c	19a	20a	1	1	1	1	1	1	1	1	0	1	1	0	1	1	1	1	1	1	0	1	17		760720352	02a3cd40-4281-4da4-b07b-109453cb3fd1	2026-03-26			submitted_via_web		vsXvzCWkMyVfniXAJUu9xq		uuid:02a3cd40-4281-4da4-b07b-109453cb3fd1	224
+2026-03-24	2026-03-26		2026-03-26	ພະແນກສາທາແຂວງ	Sekong	Lamam	ບົວສອນ ແກ້ວມະນີ	Female	Sekong	Lamam	Nurses		District Health Office	ຫ້ອງການສາທາເມືອງລະມາມ	Post-test		1a	2b	3b	4b	5b	6a	7a	8c	9a	10c	11c	12a	13a	14b	15b	16a	17a	18b	19a	20a	1	1	1	1	1	0	1	0	0	1	1	0	1	0	0	1	1	0	0	1	12		760722424	bea408b7-82cd-4e13-a67e-0da4b03afdad	2026-03-26			submitted_via_web		vsXvzCWkMyVfniXAJUu9xq		uuid:bea408b7-82cd-4e13-a67e-0da4b03afdad	225
+2026-03-26	2026-03-26		2026-03-26	ພະແນກສາທາແຂວງເຊກອງ	Sekong	Lamam	ຈັນທະລາ ເພັດໂສພາ	Female	Sekong	Kaleum	Doctors		District hospital	ໂຮງຫມໍເມືອງກະລືມ	Post-test		1a	2b	3b	4b	5b	6b	7a	8a	9c	10c	11c	12a	13a	14c	15c	16a	17c	18b	19b	20a	1	1	1	1	1	1	1	1	0	1	1	0	1	1	1	1	0	0	1	1	16		760722679	812172cb-b3a0-4c0a-b4dd-b3511697b761	2026-03-26			submitted_via_web		vsXvzCWkMyVfniXAJUu9xq		uuid:812172cb-b3a0-4c0a-b4dd-b3511697b761	226
+2026-03-26	2026-03-26		2026-03-26	ຫ້ອງການປະກັນສັງຄົມ	Oudomxay	Xay	ທ ບຸນຮອງ ວິໄລວົງສາ	Male	Oudomxay	Beng	Doctors		District Health Office	ຫ້ອງການສາທາ	Post-test		1a	2b	3b	4b	5b	6a	7a	8c	9c	10b	11c	12b	13a	14a	15b	16a	17c	18c	19b	20a	1	1	1	1	1	0	1	0	0	0	1	0	1	0	0	1	0	1	1	1	12		760723228	b9b9d7f4-2bac-4aa2-bb12-b563812c20b9	2026-03-26			submitted_via_web		vsXvzCWkMyVfniXAJUu9xq		uuid:b9b9d7f4-2bac-4aa2-bb12-b563812c20b9	227
+2026-03-26	2026-03-26		2026-03-26	ຫ້ອງການປະກັນສັງຄົມ	Oudomxay	Xay	ນາງ ໄພສອນ ທະວີສັກ	Female	Oudomxay	Houn	Primary health care		District hospital	ໂຮງຫມໍເມືອງ ຮຸນ	Post-test		1a	2b	3b	4b	5b	6b	7a	8a	9a	10c	11c	12a	13a	14b	15b	16a	17a	18c	19a	20a	1	1	1	1	1	1	1	1	0	1	1	0	1	0	0	1	1	1	0	1	15		760724111	9bbb2809-bd3c-4a0c-abb7-ae686a6667a2	2026-03-26			submitted_via_web		vsXvzCWkMyVfniXAJUu9xq		uuid:9bbb2809-bd3c-4a0c-abb7-ae686a6667a2	228
+2026-03-26	2026-03-26		2026-03-26	ຫ້ອງປະຊຸມພະແນກສາທາ	Sekong	Kaleum	ຕິວຄຳ ຈິດຕະລາດ	Female	Sekong	Kaleum	Midwives		District Health Office	ໂຮງໝໍເມືອງ	Post-test		1a	2b	3b	4b	5b	6b	7a	8a	9c	10c	11c	12a	13a	14c	15c	16a	17a	18c	19a	20a	1	1	1	1	1	1	1	1	0	1	1	0	1	1	1	1	1	1	0	1	17		760725173	fb81ad55-d76d-4095-830a-d2c74529fae5	2026-03-26			submitted_via_web		vsXvzCWkMyVfniXAJUu9xq		uuid:fb81ad55-d76d-4095-830a-d2c74529fae5	229
+2026-03-26	2026-03-26		2026-03-26	ພະແນກສາທາແຂວງເຊກອງ	Sekong	Lamam	ແກ້ງຈັນ ວັນນະວົງ	Female	Sekong	Kaleum	Nurses		District hospital	ໂຮງຫມໍເມືອງກະລຶມ	Post-test		1a	2a	3b	4b	5b	6b	7a	8a	9c	10c	11c	12a	13a	14c	15c	16a	17a	18c	19a	20a	1	0	1	1	1	1	1	1	0	1	1	0	1	1	1	1	1	1	0	1	16		760725341	635b50c2-1146-4450-9cd9-14724010c0c5	2026-03-26			submitted_via_web		vsXvzCWkMyVfniXAJUu9xq		uuid:635b50c2-1146-4450-9cd9-14724010c0c5	230
+2026-03-24	2026-03-26		2026-03-26	ຫ້ອງການປະກັນສັງຄົມ	Oudomxay	Xay	ນ ມີນາ ສຸດາດວງ	Female	Oudomxay	Pakbeng	Nurses		District hospital	ໂຮງໝໍເມືອງປາກແບງ	Post-test		1a	2b	3b	4a	5b	6a	7a	8a	9b	10c	11c	12b	13a	14c	15b	16a	17a	18a	19b	20a	1	1	1	0	1	0	1	1	1	1	1	0	1	1	0	1	1	0	1	1	15		760730565	7147ba32-6ac9-4bcb-aef7-ef7f6c4a81fa	2026-03-26			submitted_via_web		vsXvzCWkMyVfniXAJUu9xq		uuid:7147ba32-6ac9-4bcb-aef7-ef7f6c4a81fa	231
+2026-03-26	2026-03-26		2026-03-26	ປະກັນສຸຂະພາບ	Oudomxay	Beng	ພອຍໄພລີນສີລິໄຊ	Female	Oudomxay	Beng	Nurses		District hospital	ໂຮງໝໍ	Post-test		1a	2b	3b	4b	5b	6a	7a	8a	9a	10c	11a	12b	13a	14b	15b	16a	17c	18c	19c	20a	1	1	1	1	1	0	1	1	0	1	0	0	1	0	0	1	0	1	0	1	12		760733834	5ad0408f-ca2e-4e08-9d74-77deafc11e63	2026-03-26			submitted_via_web		vsXvzCWkMyVfniXAJUu9xq		uuid:5ad0408f-ca2e-4e08-9d74-77deafc11e63	232
+2026-03-26	2026-03-26		2026-03-26	ຫ້ອງການການເງີນ	Salavan	Salavanh	ນາງ ດານາກອນ ວົງຄຳແພງ	Female	Salavan	Lakhonepheng	Nurses		District Health Office	ຫ້ອງການສາທາລະນະສຸກເມືອງລະຄອນເພັງ	Post-test		1a	2b	3b	4b	5b	6b	7a	8a	9b	10c	11c	12b	13a	14c	15b	16a	17a	18c	19b	20a	1	1	1	1	1	1	1	1	1	1	1	0	1	1	0	1	1	1	1	1	18		760740584	9a3c96ff-9f41-4b96-a25f-76b9a7e65fdf	2026-03-26			submitted_via_web		vsXvzCWkMyVfniXAJUu9xq		uuid:9a3c96ff-9f41-4b96-a25f-76b9a7e65fdf	233
+2026-03-24	2026-03-26		2026-03-26	ຫ້ອງການປະກັນສັງຄົມ	Oudomxay	Xay	ທ.ລ້ວນ ໄຊຍະເທີ	Male	Oudomxay	Pakbeng	Nurses		District hospital	ໂຮງໝໍເມືອງ	Post-test		1a	2c	3b	4a	5a	6b	7a	8c	9a	10c	11c	12c	13a	14b	15b	16a	17a	18a	19a	20a	1	0	1	0	0	1	1	0	0	1	1	1	1	0	0	1	1	0	0	1	11		760741026	9000e586-940a-4fe1-adc4-6633dfc7b286	2026-03-26			submitted_via_web		vsXvzCWkMyVfniXAJUu9xq		uuid:9000e586-940a-4fe1-adc4-6633dfc7b286	234
+2026-03-24	2026-03-26		2026-03-26	ຫ້ອງການການເງິນ	Salavan	Salavanh	ເພັດເດຊາ ຄຳທະວົງສາ	Female	Salavan	Lakhonepheng	Nurses		District hospital	ໂຮງໝໍເມືອງ	Post-test		1a	2b	3b	4b	5b	6b	7a	8a	9a	10c	11c	12c	13a	14b	15b	16a	17a	18c	19a	20a	1	1	1	1	1	1	1	1	0	1	1	1	1	0	0	1	1	1	0	1	16		760741161	b246ae78-fcee-4747-8b29-8dae961ebeec	2026-03-26			submitted_via_web		vsXvzCWkMyVfniXAJUu9xq		uuid:b246ae78-fcee-4747-8b29-8dae961ebeec	235
+2026-03-26	2026-03-26		2026-03-26	ຫ້ອງການການເງິນ	Salavan	Salavanh	ນາງ ຄານທອງ ຈິດປັນຍາ	Female	Salavan	Khongxedon	Nurses		District hospital	ໂຮງຫມໍເມືອງຄົງເຊໂດນ	Post-test		1a	2b	3b	4a	5b	6b	7a	8a	9a	10c	11c	12c	13a	14b	15b	16a	17a	18c	19a	20a	1	1	1	0	1	1	1	1	0	1	1	1	1	0	0	1	1	1	0	1	15		760741162	9dc73e43-695b-4bc6-866b-de88f0b80d0c	2026-03-26			submitted_via_web		vsXvzCWkMyVfniXAJUu9xq		uuid:9dc73e43-695b-4bc6-866b-de88f0b80d0c	236
+2026-03-24	2026-03-26		2026-03-26	ຫ້ອງປະຊຸມແຜນການ ການເງິນ	Salavan	Khongxedon	ນ ດວງພອນ ເຫຼືອງທອງພູນ	Female	Salavan	Khongxedon	Midwives		District Health Office	ຫ້ອງການສາທາລະນະສຸກເມືອງຄົງເຊໂດນ	Post-test		1a	2b	3b	4a	5b	6a	7a	8a	9a	10c	11c	12b	13a	14c	15b	16a	17a	18c	19b	20a	1	1	1	0	1	0	1	1	0	1	1	0	1	1	0	1	1	1	1	1	15		760741935	dc5bc334-3dec-4279-930a-513ea9dc7653	2026-03-26			submitted_via_web		vsXvzCWkMyVfniXAJUu9xq		uuid:dc5bc334-3dec-4279-930a-513ea9dc7653	237
+2026-03-26	2026-03-26		2026-03-26	ຫ້ອງປະຊຸມການການເງີນ	Salavan	Lakhonepheng	ນ ກັນນິກາ ທອງໂສພາ	Female	Salavan	Lakhonepheng	Doctors		District hospital	ຫ້ອງກາການເງີນ	Post-test		1a	2b	3b	4a	5b	6a	7a	8a	9a	10c	11c	12b	13a	14c	15c	16a	17a	18c	19b	20a	1	1	1	0	1	0	1	1	0	1	1	0	1	1	1	1	1	1	1	1	16		760741940	4376fff1-a04c-46e6-817d-17b9aec9bb65	2026-03-26			submitted_via_web		vsXvzCWkMyVfniXAJUu9xq		uuid:4376fff1-a04c-46e6-817d-17b9aec9bb65	238
+2026-03-24	2026-03-26		2026-03-26	ຫ້ອງການການເງິນ	Salavan	Salavanh	ນາງມະນີວັນຫຼ້າຫຼ່ຽມທະວິໄຊ	Female	Salavan	Khongxedon	Midwives		District hospital	ໂຮງໝໍເມືອງຄົງເຊໂດນ	Post-test		1c	2b	3b	4a	5b	6b	7a	8a	9a	10c	11c	12c	13a	14b	15b	16a	17a	18c	19a	20a	0	1	1	0	1	1	1	1	0	1	1	1	1	0	0	1	1	1	0	1	14		760741994	1e34b691-c6f8-4923-abf8-4280c1553abd	2026-03-26			submitted_via_web		vsXvzCWkMyVfniXAJUu9xq		uuid:1e34b691-c6f8-4923-abf8-4280c1553abd	239
+2026-03-26	2026-03-26		2026-03-26	ຫ້ອງການການເງີນ	Salavan	Salavanh	ນພູທອນ  ສີທັດຄັດສາ	Female	Salavan	Lakhonepheng	Nurses		District hospital	ໂຮງຫໍມເມືອງ	Post-test		1a	2b	3b	4b	5b	6b	7a	8a	9a	10c	11c	12c	13a	14b	15b	16a	17a	18c	19a	20a	1	1	1	1	1	1	1	1	0	1	1	1	1	0	0	1	1	1	0	1	16		760742162	18ba392b-7e23-4fc3-8427-261c670b4e44	2026-03-26			submitted_via_web		vsXvzCWkMyVfniXAJUu9xq		uuid:18ba392b-7e23-4fc3-8427-261c670b4e44	240
+2026-03-24	2026-03-26		2026-03-26	ພະແນກການເງິນແຂວງ	Salavan	Salavanh	ທິບພະພອນ	Female	Salavan	Salavanh	Nurses		District Health Office	ສາທາເມືອງສາລະວັນ	Post-test		1a	2b	3b	4b	5a	6b	7a	8a	9a	10c	11c	12c	13a	14c	15b	16a	17c	18c	19a	20a	1	1	1	1	0	1	1	1	0	1	1	1	1	1	0	1	0	1	0	1	15		760742411	587781ae-9a6d-4c05-9cfd-46541446421c	2026-03-26			submitted_via_web		vsXvzCWkMyVfniXAJUu9xq		uuid:587781ae-9a6d-4c05-9cfd-46541446421c	241
+2026-03-26	2026-03-26		2026-03-24	ພະແນກການເງິນແຂວງສາລະວັນ	Salavan	Salavanh	ຕຸຕະ ພັນທະບູລີ	Female	Salavan	Toumlane	Midwives		District Health Office	ຫ້ອງການສາທາເມືອງຕຸ້ມລານ	Post-test		1a	2b	3b	4b	5b	6b	7a	8a	9a	10c	11c	12c	13a	14c	15b	16a	17c	18c	19a	20a	1	1	1	1	1	1	1	1	0	1	1	1	1	1	0	1	0	1	0	1	16		760742454	d5055c77-3a89-48db-81ee-5b8ba75143c7	2026-03-26			submitted_via_web		vsXvzCWkMyVfniXAJUu9xq		uuid:d5055c77-3a89-48db-81ee-5b8ba75143c7	242
+2026-03-26	2026-03-26		2026-03-26	ຫ້ອງປະຊຸມ ຫ້ອງການການເງິນແຂວງສາລະວັນ	Salavan	Salavanh	ມຸກດາ ສັກທອງດໍາ	Female	Salavan	Laongam	Doctors		District hospital	ໂຮງຫມໍເມືອງເລົ່າງາມ	Post-test		1a	2b	3b	4b	5b	6a	7a	8a	9a	10c	11c	12c	13a	14c	15c	16a	17c	18c	19b	20a	1	1	1	1	1	0	1	1	0	1	1	1	1	1	1	1	0	1	1	1	17		760742861	7df07beb-2bff-449f-b0ab-53e0cf86f41c	2026-03-26			submitted_via_web		vsXvzCWkMyVfniXAJUu9xq		uuid:7df07beb-2bff-449f-b0ab-53e0cf86f41c	243
+2026-03-24	2026-03-26		2026-03-26	ພະແນກການເງິນແຂວງ	Salavan	Salavanh	ນາງ ຫ່ານຟ້າ ອິນທະສອນ	Female	Salavan	Toumlane	Midwives		District Health Office	ຫ້ອງການສາທາເມືອງຕຸ້ມລານ	Post-test		1a	2b	3b	4b	5a	6a	7a	8c	9a	10c	11c	12b	13a	14c	15c	16a	17a	18a	19b	20a	1	1	1	1	0	0	1	0	0	1	1	0	1	1	1	1	1	0	1	1	14		760742875	587f1d6e-56d6-44a2-8ae0-664378253687	2026-03-26			submitted_via_web		vsXvzCWkMyVfniXAJUu9xq		uuid:587f1d6e-56d6-44a2-8ae0-664378253687	244
+2026-03-26	2026-03-26		2026-03-26	ຫ້ອງການການເງິນ	Salavan	Salavanh	ນາງນົກວິໄລແສງສາຍ	Female	Salavan	Toumlane	Doctors		District hospital	ໂຮງໝໍເມືອງ	Post-test		1a	2b	3b	4a	5b	6a	7a	8a	9c	10c	11a	12b	13a	14c	15c	16a	17c	18a	19b	20a	1	1	1	0	1	0	1	1	0	1	0	0	1	1	1	1	0	0	1	1	13		760742882	3f17c5a3-0975-41d6-8760-008af8c8932b	2026-03-26			submitted_via_web		vsXvzCWkMyVfniXAJUu9xq		uuid:3f17c5a3-0975-41d6-8760-008af8c8932b	245
+2026-03-24	2026-03-26		2026-03-26	ພະແນກການເງີນ	Salavan	Salavanh	ອານົງນິດ ແກ້ວສີແພງ	Female	Salavan	Toumlane	Doctors		District hospital	ໂຮງໝໍເມືອງຕຸ້ມລານ	Post-test		1a	2b	3b	4b	5b	6b	7a	8a	9a	10c	11c	12b	13a	14c	15c	16a	17a	18a	19b	20a	1	1	1	1	1	1	1	1	0	1	1	0	1	1	1	1	1	0	1	1	17		760742899	68156335-f827-4de0-8369-252bae6ebce0	2026-03-26			submitted_via_web		vsXvzCWkMyVfniXAJUu9xq		uuid:68156335-f827-4de0-8369-252bae6ebce0	246
+2026-03-24	2026-03-26		2026-03-26	ຫ້ອງປະຊຸມຫອ້ງການການເງີນ	Salavan	Salavanh	ດຣ ປາວີນາ ພົມມະລີ	Female	Salavan	Lakhonepheng	Doctors		District hospital	ໂຮງຫມໍເມືອງລະຄອນເພັງ	Post-test		1a	2b	3b	4b	5b	6a	7a	8a	9b	10c	11c	12b	13a	14c	15c	16a	17a	18c	19b	20a	1	1	1	1	1	0	1	1	1	1	1	0	1	1	1	1	1	1	1	1	18		760742901	cab10ba3-6166-49b8-8ac2-a888bc3cb37a	2026-03-26			submitted_via_web		vsXvzCWkMyVfniXAJUu9xq		uuid:cab10ba3-6166-49b8-8ac2-a888bc3cb37a	247
+2026-03-24	2026-03-26		2026-03-26	ຫ້ອງປະຊຸກພະແນກການເງີນ	Salavan	Salavanh	ນ ມະໄລທອງ ພົມອາມາດ	Female	Salavan	Khongxedon	Doctors		District hospital	ໂຮງໝໍເມືອງ ຄົງເຊໂດນ	Post-test		1a	2b	3b	4a	5b	6b	7a	8a	9a	10c	11c	12c	13a	14c	15b	16c	17a	18c	19b	20a	1	1	1	0	1	1	1	1	0	1	1	1	1	1	0	0	1	1	1	1	16		760742914	415cbe2b-45a4-4d7e-89d4-0c0f1ab602e8	2026-03-26			submitted_via_web		vsXvzCWkMyVfniXAJUu9xq		uuid:415cbe2b-45a4-4d7e-89d4-0c0f1ab602e8	248
+2026-03-24	2026-03-26		2026-03-26	ພະແນກການເງິນແຂວງ	Salavan	Salavanh	ນ ລັດຕະນະພອນ ວົງຫາເທບ	Female	Salavan	Lakhonepheng	Doctors		District Health Office	ຫ້ອງການສາທາ	Post-test		1a	2b	3b	4b	5a	6a	7a	8a	9a	10c	11c	12c	13a	14c	15c	16a	17a	18a	19b	20a	1	1	1	1	0	0	1	1	0	1	1	1	1	1	1	1	1	0	1	1	16		760743049	18b563d2-d276-4ac3-b2e8-88b4e830b8b0	2026-03-26			submitted_via_web		vsXvzCWkMyVfniXAJUu9xq		uuid:18b563d2-d276-4ac3-b2e8-88b4e830b8b0	249
+2026-03-24	2026-03-26		2026-03-26	ຫ້ອງປະຊຸມຫ້ອງການການເງິນ	Salavan	Salavanh	ປານີໄຊ ຄຸນແສງມະນີວົງ	Female	Salavan	Toumlane	Midwives		District hospital	ໂຮງໝໍເມືອງຕຸ້ມລານ	Post-test		1a	2b	3b	4b	5b	6a	7a	8a	9b	10c	11a	12c	13a	14c	15a	16a	17a	18c	19c	20a	1	1	1	1	1	0	1	1	1	1	0	1	1	1	0	1	1	1	0	1	16		760743351	e79c1879-4398-4a7a-8cef-b27def03a873	2026-03-26			submitted_via_web		vsXvzCWkMyVfniXAJUu9xq		uuid:e79c1879-4398-4a7a-8cef-b27def03a873	250
+2026-03-26	2026-03-26		2026-03-26	ຫ້ອງປະຊຸມການເງີນ	Salavan	Salavanh	ດຣ ສຸນາລີ  ຈັນທະລາ	Female	Salavan	Laongam	Doctors		District hospital	ໂຮງໝໍເມືອງເລົ່າງາມ	Post-test		1a	2b	3b	4b	5b	6b	7a	8a	9b	10c	11c	12c	13a	14c	15c	16a	17a	18c	19c	20a	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	0	1	19		760743400	643fed16-f4db-4229-b275-07949ce3c60c	2026-03-26			submitted_via_web		vsXvzCWkMyVfniXAJUu9xq		uuid:643fed16-f4db-4229-b275-07949ce3c60c	251
+2026-03-24	2026-03-26		2026-03-26	ຫ້ອງປະຊຸມຫ້ອງການການເງີນແຂວງ	Salavan	Salavanh	ນາງ ຈັນສີ ນີນທະຂັນ	Female	Salavan	Toumlane	Doctors		District hospital	ໂຮງຫມໍເມືອງຕຸ້ມລານ	Post-test		1a	2b	3b	4b	5b	6a	7a	8c	9a	10c	11c	12c	13a	14c	15a	16c	17a	18c	19b	20a	1	1	1	1	1	0	1	0	0	1	1	1	1	1	0	0	1	1	1	1	15		760743406	6f10988e-93c6-4fb0-aaa1-515346e28b7e	2026-03-26			submitted_via_web		vsXvzCWkMyVfniXAJUu9xq		uuid:6f10988e-93c6-4fb0-aaa1-515346e28b7e	252
+2026-03-24	2026-03-26		2026-03-26	ຫ້ອຫ້ອງແຜນການການເງີນ	Salavan	Laongam	ນ.ຂັນທອງ ຈອມມະນີດາວົງ	Female	Salavan	Laongam	Nurses		District hospital	ໂຮງໜໍເມືອງເລົ່າງາມ	Post-test		1a	2b	3b	4b	5b	6a	7a	8a	9b	10c	11c	12b	13a	14c	15c	16a	17a	18c	19b	20a	1	1	1	1	1	0	1	1	1	1	1	0	1	1	1	1	1	1	1	1	18		760743823	e9a7dd13-69b0-49df-9e88-48a3133b451a	2026-03-26			submitted_via_web		vsXvzCWkMyVfniXAJUu9xq		uuid:e9a7dd13-69b0-49df-9e88-48a3133b451a	253
+2026-03-26	2026-03-26		2026-03-26	ຫ້ອງການແຜນການ ການເງິນ	Salavan	Salavanh	ຈ໋ອນ ຮິ່ງວິໄລວົງ	Female	Salavan	Laongam	Midwives		District hospital	ໂຮງຫມໍເມືອງເລົ່າງາມ	Post-test		1a	2b	3b	4a	5b	6b	7a	8a	9a	10c	11a	12c	13a	14c	15a	16a	17a	18c	19c	20a	1	1	1	0	1	1	1	1	0	1	0	1	1	1	0	1	1	1	0	1	15		760743851	7e862fb8-e3b2-463b-b4bb-c5fd9a785534	2026-03-26			submitted_via_web		vsXvzCWkMyVfniXAJUu9xq		uuid:7e862fb8-e3b2-463b-b4bb-c5fd9a785534	254
+2026-03-24	2026-03-26		2026-03-26	ຫ້ອງແຜນການການລົງທຶນ	Salavan	Laongam	ນາງສັ້ນສຸລິຍົງ	Female	Salavan	Laongam	Nurses		District Health Office	ຫ້ອງການສາທາເມືອງເລົ່າງາມ	Post-test		1a	2b	3b	4b	5b	6a	7a	8a	9a	10c	11c	12b	13a	14c	15c	16a	17a	18c	19b	20a	1	1	1	1	1	0	1	1	0	1	1	0	1	1	1	1	1	1	1	1	17		760743861	292857a1-6929-4508-9be1-085ad520bd48	2026-03-26			submitted_via_web		vsXvzCWkMyVfniXAJUu9xq		uuid:292857a1-6929-4508-9be1-085ad520bd48	255
+2026-03-26	2026-03-26		2026-03-26	ຫ້ອງການການເງີນແຂວງ	Salavan	Salavanh	ທ້າວ ສົມໄຊ ອຸ່ນເຮືອນ	Male	Salavan	Khongxedon	Doctors		District hospital	ໂຮງໝໍເມືອງຄົງ	Post-test		1a	2b	3b	4b	5b	6a	7a	8a	9a	10c	11c	12b	13a	14c	15b	16a	17a	18c	19b	20a	1	1	1	1	1	0	1	1	0	1	1	0	1	1	0	1	1	1	1	1	16		760744237	205590a3-7ab2-421a-8311-6f4d163b6fd4	2026-03-26			submitted_via_web		vsXvzCWkMyVfniXAJUu9xq		uuid:205590a3-7ab2-421a-8311-6f4d163b6fd4	256
+2026-03-24	2026-03-26		2026-03-26	ຫ້ອງແຜນການເງີນ	Salavan	Salavanh	ນາງໄກ່ສອນດຸ່ນວົງເລືອນ	Female	Salavan	Salavanh	Primary health care		District Health Office	ຫ້ອງການແຜນການເງີນ	Post-test		1b	2b	3b	4c	5b	6b	7a	8b	9a	10c	11c	12b	13a	14a	15a	16a	17a	18c	19b	20a	0	1	1	0	1	1	1	0	0	1	1	0	1	0	0	1	1	1	1	1	13		760744485	36d27d52-90ba-4faa-ba7a-51573ea3cd7e	2026-03-26			submitted_via_web		vsXvzCWkMyVfniXAJUu9xq		uuid:36d27d52-90ba-4faa-ba7a-51573ea3cd7e	257
+2026-03-24	2026-03-26		2026-03-26	ທ. ສຸລິຍັນ ດ້ວງດວງສີ	Salavan	Khongxedon	ທ. ສຸລິຍັນ ດ້ວງດວງສີ	Male	Salavan	Khongxedon	Nurses		District Health Office	ຫ້ອງການສາທາລະນະສຸກເມືອ ຄົງເຊໂດນ	Post-test		1b	2b	3b	4b	5b	6c	7a	8b	9a	10c	11c	12b	13a	14c	15a	16a	17a	18c	19b	20a	0	1	1	1	1	0	1	0	0	1	1	0	1	1	0	1	1	1	1	1	14		760744504	e5b10ca6-e5eb-4f8d-95e7-9b2fd3c96d5b	2026-03-26			submitted_via_web		vsXvzCWkMyVfniXAJUu9xq		uuid:e5b10ca6-e5eb-4f8d-95e7-9b2fd3c96d5b	258
+2026-03-24	2026-03-26		2026-03-26	ຫ້ອງປະຊຸມການການເງີນ	Salavan	Salavanh	ດິສເຕີ ເປີຍກັນຍາ	Male	Salavan	Laongam	Doctors		District Health Office	ຫ້ອງການສາທາເມືອງ	Post-test		1b	2b	3b	4a	5a	6a	7a	8a	9b	10c	11c	12b	13a	14c	15b	16b	17a	18c	19b	20a	0	1	1	0	0	0	1	1	1	1	1	0	1	1	0	0	1	1	1	1	13		760745024	9203c916-178f-486f-831b-0f3bc879c31a	2026-03-26			submitted_via_web		vsXvzCWkMyVfniXAJUu9xq		uuid:9203c916-178f-486f-831b-0f3bc879c31a	259
+2026-03-24	2026-03-26		2026-03-26	ຫ້ອງການປະກັນສັງຄົມ	Oudomxay	Xay	ນາງ ດວງມາລີ ອິນຕາຈັກ	Female	Oudomxay	Pakbeng	Midwives		District hospital	ຫ້ອງການສາທາລະນະສຸກ	Post-test		1a	2b	3b	4b	5b	6b	7a	8a	9c	10c	11a	12b	13a	14b	15c	16a	17a	18c	19b	20a	1	1	1	1	1	1	1	1	0	1	0	0	1	0	1	1	1	1	1	1	16		760753360	b926404f-a4af-4d09-b1d1-53d147fb6970	2026-03-26			submitted_via_web		vsXvzCWkMyVfniXAJUu9xq		uuid:b926404f-a4af-4d09-b1d1-53d147fb6970	260
+2026-03-26	2026-03-26		2026-03-26	ພະແນກສາທາແຂວງ	Sekong	Lamam	ເກດເກສີໄຊສົງຄາມ	Female	Sekong	Thateng	Doctors		District Health Office	ຫ້ອງການສາທາ	Post-test		1a	2b	3b	4b	5b	6b	7a	8a	9b	10c	11c	12c	13a	14c	15c	16a	17a	18c	19b	20a	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	1	20		760754032	cf7d83b2-b7e3-4910-822d-9eb7c1d1b0ee	2026-03-26			submitted_via_web		vsXvzCWkMyVfniXAJUu9xq		uuid:cf7d83b2-b7e3-4910-822d-9eb7c1d1b0ee	261
+    </script>
+</body>
+</html>
